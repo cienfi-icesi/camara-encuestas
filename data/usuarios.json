@@ -18,8 +18,8 @@
   }
  ],
  "fecha_corrida": "2026-08-17",
- "generado_en": "2026-08-17T21:24:42-05:00",
- "publicado_en": "2026-08-17T23:13:58-05:00",
- "modo": "heuristico",
- "modelo": null
+ "generado_en": "2026-08-18T00:55:23-05:00",
+ "publicado_en": "2026-08-18T07:07:48-05:00",
+ "modo": "modelo",
+ "modelo": "sonnet"
 }
