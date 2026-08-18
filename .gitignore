@@ -1,0 +1,19 @@
+# Este repositorio es PÚBLICO y contiene solo el sitio estático.
+# Los datos que sí se versionan (data/*.enc.json) están CIFRADOS: se generan en
+# el Mac con `python -m agente.publicar_tablero`, desde el aplicativo del agente.
+# Aquí nunca debe entrar nada en claro.
+
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.tmp
+
+# Por si alguien copia el estado sin cifrar dentro del repo por error.
+estado_verificado.json
+*.xlsx
+*.xlsm
+
+# Copias en conflicto de Dropbox (el clon vive dentro de una carpeta Dropbox)
+*Copia en conflicto de*
+*conflicted copy*
