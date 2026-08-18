@@ -17,9 +17,10 @@
    "rol": "admin"
   }
  ],
- "fecha_corrida": "2026-08-17",
- "generado_en": "2026-08-18T00:55:23-05:00",
- "publicado_en": "2026-08-18T07:07:48-05:00",
- "modo": "modelo",
+ "fecha_corrida": "2026-08-18",
+ "generado_en": "2026-08-18T09:35:18-05:00",
+ "publicado_en": "2026-08-18T09:35:25-05:00",
+ "modo_modelo": 349,
+ "modo_heuristico": 0,
  "modelo": "sonnet"
 }
