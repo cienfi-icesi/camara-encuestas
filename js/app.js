@@ -150,13 +150,16 @@
     const efe = r.gestion_efectiva != null ? r.gestion_efectiva : si + resp + no;
     const w = (n) => (100 * n / total).toFixed(1);
     const e = r.encuestas;
+    // Dos números distintos, sin mezclar: "diligenciadas" (la meta real) y, aparte, cuántas
+    // de esas tienen los 4 módulos completos. Ver encuestas.resumen_persona.
+    const dilig = e && (e.diligenciadas != null ? e.diligenciadas : e.completas);
     const colEnc = e && e.disponible
       ? `<div class="col enc">
-           <div class="rot">Encuestas completas</div>
-           <div class="big">${e.completas}</div>
+           <div class="rot">Encuestas diligenciadas</div>
+           <div class="big">${dilig}</div>
            <ul class="desglose" style="margin-top:12px">
-             <li><b>${e.realizadas}</b> encuestas realizadas en total</li>
-             <li><span style="color:var(--gris-oscuro)">${e.en_curso} aún en curso${e.autodiligenciadas ? ' · ' + e.autodiligenciadas + ' las diligenció la empresa' : ''}</span></li>
+             <li><b>${e.completas}</b> con los cuatro módulos completos${e.parciales_justificadas ? ` · <b>${e.parciales_justificadas}</b> parcial(es) con justificación` : ''}</li>
+             <li><span style="color:var(--gris-oscuro)">${e.realizadas} realizadas · ${e.en_curso} aún en curso${e.autodiligenciadas ? ' · ' + e.autodiligenciadas + ' autodiligenciadas' : ''}</span></li>
            </ul>
          </div>`
       : '';
@@ -212,43 +215,48 @@
     cont.innerHTML = (PERSONA === 'TODAS' ? svgEquipo() : svgEmbudo(r)) + nota;
   }
 
-  // Coordinación: cuántas encuestas lleva cada quien, separando completas de las que van a medias.
+  // Coordinación: cuántas encuestas lleva cada quien. La barra separa diligenciadas (hechas)
+  // de en curso; debajo se aclara cuántas de las diligenciadas tienen los 4 módulos.
   function svgEquipo() {
     const personas = (DATOS.personas || Object.keys(DATOS.resumen).filter((k) => k !== 'TOTAL'));
     const filas = personas.map((p) => {
-      const e = (DATOS.resumen[p] || {}).encuestas || { realizadas: 0, completas: 0, en_curso: 0, autodiligenciadas: 0 };
-      return { nombre: NOMBRE_PERSONA[p] || p, ...e };
+      const e = (DATOS.resumen[p] || {}).encuestas || {};
+      const dilig = e.diligenciadas != null ? e.diligenciadas : (e.completas || 0);
+      return { nombre: NOMBRE_PERSONA[p] || p, realizadas: e.realizadas || 0, diligenciadas: dilig,
+               completas: e.completas || 0, en_curso: e.en_curso != null ? e.en_curso : (e.realizadas || 0) - dilig,
+               autodiligenciadas: e.autodiligenciadas || 0 };
     });
     const max = Math.max(1, ...filas.map((f) => f.realizadas));
     const W = 560, alto = 42, izq = 92, anchoMax = W - izq - 70;
     let y = 6;
     let svg = `<svg class="svg-grafico" viewBox="0 0 ${W} ${filas.length * alto + 34}" role="img" aria-label="Encuestas por encuestador">`;
     filas.forEach((f) => {
-      const wC = Math.max(f.completas ? 2 : 0, anchoMax * f.completas / max);
+      const wC = Math.max(f.diligenciadas ? 2 : 0, anchoMax * f.diligenciadas / max);
       const wE = Math.max(f.en_curso ? 2 : 0, anchoMax * f.en_curso / max);
       svg += `<text x="${izq - 8}" y="${y + 20}" text-anchor="end" font-size="13" fill="#26272B">${esc(f.nombre)}</text>` +
-             `<rect x="${izq}" y="${y + 7}" width="${wC}" height="18" rx="3" fill="${C_COMPLETA}"><title>Completas: ${f.completas}</title></rect>` +
+             `<rect x="${izq}" y="${y + 7}" width="${wC}" height="18" rx="3" fill="${C_COMPLETA}"><title>Diligenciadas: ${f.diligenciadas}</title></rect>` +
              `<rect x="${izq + wC}" y="${y + 7}" width="${wE}" height="18" rx="3" fill="${C_CURSO}"><title>En curso: ${f.en_curso}</title></rect>` +
              `<text x="${izq + wC + wE + 8}" y="${y + 21}" font-size="13" font-weight="700" fill="#0B0B0C">${f.realizadas}</text>` +
-             `<text x="${izq}" y="${y + 38}" font-size="11.5" fill="#5A5C61">${f.completas} completas · ${f.en_curso} en curso` +
+             `<text x="${izq}" y="${y + 38}" font-size="11.5" fill="#5A5C61">${f.diligenciadas} diligenciadas (${f.completas} con los 4 módulos) · ${f.en_curso} en curso` +
              (f.autodiligenciadas ? ` · ${f.autodiligenciadas} autodiligenciadas` : '') + `</text>`;
       y += alto;
     });
     svg += `<rect x="${izq}" y="${y + 4}" width="10" height="10" rx="2" fill="${C_COMPLETA}"></rect>` +
-           `<text x="${izq + 15}" y="${y + 13}" font-size="11.5" fill="#5A5C61">Completa</text>` +
-           `<rect x="${izq + 88}" y="${y + 4}" width="10" height="10" rx="2" fill="${C_CURSO}"></rect>` +
-           `<text x="${izq + 103}" y="${y + 13}" font-size="11.5" fill="#5A5C61">A medias</text></svg>`;
+           `<text x="${izq + 15}" y="${y + 13}" font-size="11.5" fill="#5A5C61">Diligenciada</text>` +
+           `<rect x="${izq + 100}" y="${y + 4}" width="10" height="10" rx="2" fill="${C_CURSO}"></rect>` +
+           `<text x="${izq + 115}" y="${y + 13}" font-size="11.5" fill="#5A5C61">En curso</text></svg>`;
     return svg;
   }
 
-  // Encuestador: el embudo real, de la cartera asignada a la encuesta completa.
+  // Encuestador: el embudo real, de la cartera asignada a la encuesta diligenciada.
   function svgEmbudo(r) {
     const e = r.encuestas;
+    const dilig = e.diligenciadas != null ? e.diligenciadas : e.completas;
     const pasos = [
       { t: 'Empresas asignadas', v: r.total, c: C_TENUE, oscuro: true },
       { t: 'Gestión efectiva', v: r.gestion_efectiva != null ? r.gestion_efectiva : r.contactadas_efectivamente, c: '#7A93F0' },
       { t: 'Encuestas iniciadas', v: e.realizadas, c: C_CURSO },
-      { t: 'Encuestas completas', v: e.completas, c: C_COMPLETA },
+      { t: 'Encuestas diligenciadas', v: dilig, c: C_COMPLETA },
     ];
     const max = Math.max(1, r.total);
     const W = 560, alto = 38, izq = 210, anchoMax = W - izq - 60;
@@ -339,6 +347,7 @@
         <div style="grid-column:1/-1"><b>Siguiente paso:</b> ${esc(v.siguiente_paso || '—')}</div>
         <div><b>Respuesta:</b> ${v.hubo_respuesta_empresa ? 'sí (' + esc(v.tipo_respuesta) + ')' : 'no'} · ${v.n_intentos_evidenciados || 0} intentos${(v.canales_evidenciados || []).length ? ' · ' + esc(v.canales_evidenciados.join(', ')) : ''}</div>
         <div><b>Última respuesta:</b> ${fmtFecha(v.fecha_ultima_respuesta)}${v.fecha_sugerida_seguimiento || (e.prioridad || {}).fecha_recordatorio ? ` · <b>recordar:</b> ${fmtFecha(v.fecha_sugerida_seguimiento || (e.prioridad || {}).fecha_recordatorio)}` : ''}</div>
+        ${v.ajuste_contacto_prop ? `<div style="grid-column:1/-1;color:#5A5C61"><b>Contacto proporcionado:</b> la empresa entregó un contacto${v.ajuste_contacto_prop.contacto ? ` (${esc(v.ajuste_contacto_prop.contacto)})` : ''}, así que se cuenta como avance. Por evidencia documental el agente lo veía como <i>${esc(ETIQUETA[v.ajuste_contacto_prop.estado_agente] || v.ajuste_contacto_prop.estado_agente)}</i>.</div>` : ''}
         ${(e.declarado.casillas || []).length || e.declarado.no_participa ? `<div style="grid-column:1/-1"><b>Casillas del Excel:</b> ${esc((e.declarado.casillas || []).join(', ') || '—')}${e.declarado.no_participa ? ' · en hoja no-participa' : ''}</div>` : ''}
         ${v.coincide_con_declarado === false ? `<div style="grid-column:1/-1"><span class="discrepancia"><b>Discrepancia:</b> ${esc(v.discrepancia || 'el declarado no coincide con la evidencia')}</span></div>` : ''}
         ${e.override ? `<div style="grid-column:1/-1"><b>Override:</b> ${esc(e.override.estado_verificado || '')} ${esc(e.override.nota || '')} (${esc(e.override.autor || '')}, ${esc(e.override.fecha || '')})</div>` : ''}
