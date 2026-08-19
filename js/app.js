@@ -129,8 +129,9 @@
     const r = resumenActivo();
     const quien = PERSONA === 'TODAS' ? 'Todo el equipo' : (NOMBRE_PERSONA[PERSONA] || PERSONA);
     $('t-titulo').textContent = `Tablero de ${quien}`;
-    $('t-meta').textContent = `Corrida del ${fmtFecha(DATOS.fecha_corrida)} · ${r.total} empresas asignadas · ` +
-      textoModo(r.modelo_verificador || DATOS.modelo, r.modo_modelo, r.modo_heuristico);
+    // Solo la fecha: el total de empresas ya se ve en el hero ("N de 690") y el detalle de
+    // modelo/heurística solo importa cuando queda algo sin revisar — para eso está el aviso.
+    $('t-meta').textContent = `Corrida del ${fmtFecha(DATOS.fecha_corrida)}`;
     const aviso = $('t-aviso');
     if (r.modo_heuristico > 0) {
       aviso.textContent = r.modo_modelo > 0
