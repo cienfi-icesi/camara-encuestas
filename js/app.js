@@ -347,8 +347,8 @@
         ${enc && enc.diligenciada ? `<div style="grid-column:1/-1;background:#EAF5EE;border-radius:6px;padding:8px 10px;color:#0F5C2E">
            <b>Encuesta diligenciada</b> (${enc.porcentaje}%${enc.completa ? ', los 4 módulos' : ', con un módulo justificado como no aplicable'})
            ${enc.autodiligenciada ? '· la respondió la empresa por su cuenta' : (enc.aplicada_por ? `· la aplicó ${esc(NOMBRE_PERSONA[enc.aplicada_por] || enc.aplicada_por)}` : '')}
-           ${enc.ultima_modificacion ? `· ${fmtFecha(enc.ultima_modificacion)}` : ''}.
-           El estado de contacto de abajo describe la evidencia documental, no si la encuesta está hecha — ya lo está.
+           ${enc.ultima_modificacion ? `· ${fmtFecha(enc.ultima_modificacion)}` : ''}. Por eso cuenta como contacto efectivo.
+           ${v.ajuste_encuesta ? ` Antes de la encuesta, la evidencia documental por sí sola indicaba: <i>${esc(ETIQUETA[v.ajuste_encuesta.estado_agente] || v.ajuste_encuesta.estado_agente)}</i>.` : ''}
          </div>` : ''}
         <div style="grid-column:1/-1"><b>Resumen:</b> ${esc(v.resumen || '—')}</div>
         <div style="grid-column:1/-1"><b>Siguiente paso:</b> ${esc(v.siguiente_paso || '—')}</div>
