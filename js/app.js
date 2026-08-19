@@ -138,19 +138,44 @@
         : 'Esta corrida se hizo en modo heurístico (reglas sobre cabeceras de correo y palabras clave, sin el modelo). Los estados son una aproximación; la corrida con claude-sonnet-5 los afina.';
       aviso.classList.remove('oculto');
     } else aviso.classList.add('oculto');
-    renderKpis(r); renderBarra(r); renderEncuestas(r); renderHoy(); renderSeguimientos(); renderTabla();
+    renderHero(r); renderBarra(r); renderEncuestas(r); renderHoy(); renderSeguimientos(); renderTabla();
   }
 
-  function renderKpis(r) {
-    const k = [
-      { c: 'si', v: r.contactadas_efectivamente, e: 'Contactadas efectivamente', d: `${r.aceptaron} sí · ${r.rechazaron} no` },
-      { c: 'faltan', v: r.faltan_por_contactar, e: 'Faltan por contactar realmente', d: `de ${r.total} asignadas` },
-      { c: 'resp', v: r.en_seguimiento, e: 'Respondieron sin decisión', d: 'seguimiento a 3–4 días' },
-      { c: 'int', v: r.intento_sin_respuesta, e: 'Intentos sin respuesta', d: 'llamadas / WhatsApp sin eco' },
-      { c: 'correo', v: r.solo_correo, e: 'Solo un correo enviado', d: 'no cuenta como contactada' },
-      { c: 'sin', v: r.sin_gestion, e: 'Sin gestión', d: 'carpeta sin evidencia' },
-    ];
-    $('t-kpis').innerHTML = k.map((x) => `<div class="kpi ${x.c}"><div class="valor">${x.v}</div><div class="etiqueta">${x.e}</div><div class="detalle">${x.d}</div></div>`).join('');
+  // Hero: los dos números que importan. "Gestión efectiva" = avance real (la empresa
+  // respondió con algo: aceptó, rechazó, o respondió sin decidir). Reemplaza las 6 tarjetas
+  // que repetían la barra de estado de abajo.
+  function renderHero(r) {
+    const total = r.total || 1;
+    const si = r.aceptaron || 0, resp = r.en_seguimiento || 0, no = r.rechazaron || 0;
+    const efe = r.gestion_efectiva != null ? r.gestion_efectiva : si + resp + no;
+    const w = (n) => (100 * n / total).toFixed(1);
+    const e = r.encuestas;
+    const colEnc = e && e.disponible
+      ? `<div class="col enc">
+           <div class="rot">Encuestas completas</div>
+           <div class="big">${e.completas}</div>
+           <ul class="desglose" style="margin-top:12px">
+             <li><b>${e.realizadas}</b> encuestas realizadas en total</li>
+             <li><span style="color:var(--gris-oscuro)">${e.en_curso} aún en curso${e.autodiligenciadas ? ' · ' + e.autodiligenciadas + ' las diligenció la empresa' : ''}</span></li>
+           </ul>
+         </div>`
+      : '';
+    $('t-hero').classList.toggle('hero', !!colEnc);   // sin 2ª columna, no forzar el grid
+    $('t-hero').innerHTML = `
+      <div class="col">
+        <div class="rot">Gestión efectiva · avances reales</div>
+        <div class="big">${efe} <span class="de">de ${total}</span></div>
+        <div class="prog">
+          <i style="width:${w(si)}%;background:${COLOR.contacto_efectivo_si}"></i>
+          <i style="width:${w(resp)}%;background:${COLOR.respondio_sin_decision}"></i>
+          <i style="width:${w(no)}%;background:${COLOR.contacto_efectivo_no}"></i>
+        </div>
+        <ul class="desglose">
+          <li><span class="pt" style="background:${COLOR.contacto_efectivo_si}"></span> <b>${si}</b> aceptaron o agendaron</li>
+          <li><span class="pt" style="background:${COLOR.respondio_sin_decision}"></span> <b>${resp}</b> respondieron, sin decidir aún <span style="color:var(--gris)">· seguimiento a 3–4 días</span></li>
+          <li><span class="pt" style="background:${COLOR.contacto_efectivo_no}"></span> <b>${no}</b> no desea participar <span style="color:var(--gris)">· cerrada</span></li>
+        </ul>
+      </div>${colEnc}`;
   }
 
   function renderBarra(r) {
@@ -221,7 +246,7 @@
     const e = r.encuestas;
     const pasos = [
       { t: 'Empresas asignadas', v: r.total, c: C_TENUE, oscuro: true },
-      { t: 'Contacto efectivo verificado', v: r.contactadas_efectivamente, c: '#7A93F0' },
+      { t: 'Gestión efectiva', v: r.gestion_efectiva != null ? r.gestion_efectiva : r.contactadas_efectivamente, c: '#7A93F0' },
       { t: 'Encuestas iniciadas', v: e.realizadas, c: C_CURSO },
       { t: 'Encuestas completas', v: e.completas, c: C_COMPLETA },
     ];
@@ -309,20 +334,14 @@
         <td>${e.evidencia.n_archivos}${e.evidencia.n_relatorias ? ` <span style="color:#88898C">(${e.evidencia.n_relatorias} relat.)</span>` : ''}</td>
         <td>${v.confianza != null ? Math.round(v.confianza * 100) + '%' : '—'}</td></tr>`;
       if (abierta !== e.id) return fila;
-      const arch = (e.evidencia.archivos || []).map((a) => `${esc(a.archivo)}`).join(', ');
-      const cons = e.declarado.consolidado ? Object.entries(e.declarado.consolidado).filter(([, x]) => x).map(([k, x]) => `${k}: ${esc(x)}`).join(' · ') : '—';
       return fila + `<tr class="detalle"><td colspan="7"><div class="detalle-grid">
-        <div><b>Resumen del agente:</b> ${esc(v.resumen || '—')}</div>
-        <div><b>Siguiente paso:</b> ${esc(v.siguiente_paso || '—')}</div>
-        <div><b>Respuesta de la empresa:</b> ${v.hubo_respuesta_empresa ? 'sí (' + esc(v.tipo_respuesta) + ')' : 'no'} · <b>Canales:</b> ${esc((v.canales_evidenciados || []).join(', ') || '—')} · <b>Intentos:</b> ${v.n_intentos_evidenciados || 0}</div>
-        <div><b>Última respuesta:</b> ${fmtFecha(v.fecha_ultima_respuesta)} · <b>Recordatorio:</b> ${fmtFecha(v.fecha_sugerida_seguimiento || (e.prioridad || {}).fecha_recordatorio)}</div>
-        <div>${v.coincide_con_declarado === false ? `<span class="discrepancia"><b>Discrepancia:</b> ${esc(v.discrepancia || 'el declarado no coincide con la evidencia')}</span>` : '<b>Coincide con lo declarado.</b>'}</div>
-        <div><b>Casillas del Excel:</b> ${esc((e.declarado.casillas || []).join(', ') || '—')}${e.declarado.no_participa ? ' · en hoja no-participa' : ''}</div>
-        <div><b>Consolidado del equipo:</b> ${cons}</div>
-        <div><b>Archivos clave:</b> ${esc((v.archivos_clave || []).join(', ') || '—')}</div>
-        <div style="grid-column:1/-1"><b>Evidencia (${e.evidencia.n_archivos}):</b> ${arch || '—'}</div>
-        <div><b>Modo:</b> ${esc(v.modo)}${v.modelo ? ' · ' + esc(v.modelo) : ''} · evaluada el ${fmtFecha(v.actualizado_en)}${v.heuristica ? ' · heurística: ' + esc(ETIQUETA[v.heuristica.estado_verificado] || v.heuristica.estado_verificado) : ''}</div>
-        ${e.override ? `<div><b>Override:</b> ${esc(e.override.estado_verificado || '')} ${esc(e.override.nota || '')} (${esc(e.override.autor || '')}, ${esc(e.override.fecha || '')})</div>` : ''}
+        <div style="grid-column:1/-1"><b>Resumen:</b> ${esc(v.resumen || '—')}</div>
+        <div style="grid-column:1/-1"><b>Siguiente paso:</b> ${esc(v.siguiente_paso || '—')}</div>
+        <div><b>Respuesta:</b> ${v.hubo_respuesta_empresa ? 'sí (' + esc(v.tipo_respuesta) + ')' : 'no'} · ${v.n_intentos_evidenciados || 0} intentos${(v.canales_evidenciados || []).length ? ' · ' + esc(v.canales_evidenciados.join(', ')) : ''}</div>
+        <div><b>Última respuesta:</b> ${fmtFecha(v.fecha_ultima_respuesta)}${v.fecha_sugerida_seguimiento || (e.prioridad || {}).fecha_recordatorio ? ` · <b>recordar:</b> ${fmtFecha(v.fecha_sugerida_seguimiento || (e.prioridad || {}).fecha_recordatorio)}` : ''}</div>
+        ${(e.declarado.casillas || []).length || e.declarado.no_participa ? `<div style="grid-column:1/-1"><b>Casillas del Excel:</b> ${esc((e.declarado.casillas || []).join(', ') || '—')}${e.declarado.no_participa ? ' · en hoja no-participa' : ''}</div>` : ''}
+        ${v.coincide_con_declarado === false ? `<div style="grid-column:1/-1"><span class="discrepancia"><b>Discrepancia:</b> ${esc(v.discrepancia || 'el declarado no coincide con la evidencia')}</span></div>` : ''}
+        ${e.override ? `<div style="grid-column:1/-1"><b>Override:</b> ${esc(e.override.estado_verificado || '')} ${esc(e.override.nota || '')} (${esc(e.override.autor || '')}, ${esc(e.override.fecha || '')})</div>` : ''}
         ${v.error ? `<div class="discrepancia" style="grid-column:1/-1"><b>Error:</b> ${esc(v.error)}</div>` : ''}
       </div></td></tr>`;
     }).join('') || '<tr><td colspan="7" class="vacio">Sin resultados para el filtro.</td></tr>';

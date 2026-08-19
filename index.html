@@ -61,38 +61,36 @@
 
     <div class="aviso-modo oculto" id="t-aviso"></div>
 
-    <div class="kpis" id="t-kpis"></div>
+    <div class="tarjeta hero" id="t-hero"></div>
 
-    <div class="dos-columnas">
-      <div class="tarjeta">
-        <h2>Cómo está el universo</h2>
-        <p class="ayuda">Cada empresa en un solo estado, según la evidencia (correos, relatorías, soportes).</p>
-        <div class="barra" id="t-barra"></div>
-        <div class="leyenda" id="t-leyenda"></div>
-      </div>
-      <div class="tarjeta">
-        <h2 id="t-enc-titulo">Encuestas realizadas</h2>
-        <p class="ayuda" id="t-enc-ayuda">Del contacto a la encuesta contestada.</p>
-        <div id="t-encuestas"></div>
-      </div>
+    <div class="tarjeta">
+      <h2>Estado de las empresas</h2>
+      <p class="ayuda">Cada empresa en un solo estado, según la evidencia (correos, relatorías, soportes). Los primeros tres son gestión efectiva.</p>
+      <div class="barra" id="t-barra"></div>
+      <div class="leyenda" id="t-leyenda"></div>
     </div>
 
-    <div class="dos-columnas">
-      <div class="tarjeta">
-        <h2 id="t-hoy-titulo">Hoy: empresas a intentar contactar</h2>
-        <p class="ayuda" id="t-hoy-ayuda"></p>
-        <ol class="lista" id="t-hoy"></ol>
-      </div>
-      <div class="tarjeta">
-        <h2>Seguimientos a 3–4 días</h2>
-        <p class="ayuda">Respondieron pero quedaron sin decisión; toca el segundo contacto.</p>
-        <ul class="lista" id="t-seguimientos"></ul>
-      </div>
+    <div class="tarjeta">
+      <h2 id="t-enc-titulo">Encuestas realizadas</h2>
+      <p class="ayuda" id="t-enc-ayuda">Del contacto a la encuesta contestada.</p>
+      <div id="t-encuestas"></div>
+    </div>
+
+    <div class="tarjeta">
+      <h2 id="t-hoy-titulo">Hoy: empresas a intentar contactar</h2>
+      <p class="ayuda" id="t-hoy-ayuda"></p>
+      <ol class="lista" id="t-hoy"></ol>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Seguimientos a 3–4 días</h2>
+      <p class="ayuda">Respondieron pero quedaron sin decisión; toca el segundo contacto.</p>
+      <ul class="lista" id="t-seguimientos"></ul>
     </div>
 
     <div class="tarjeta">
       <h2>Todas las empresas</h2>
-      <p class="ayuda">Haz clic en una fila para ver el detalle (resumen del agente, archivos clave, discrepancias).</p>
+      <p class="ayuda">Haz clic en una fila para ver el detalle (resumen, siguiente paso, discrepancias).</p>
       <div class="filtros">
         <div><label for="f-buscar">Buscar</label><input id="f-buscar" placeholder="empresa o id"></div>
         <div><label for="f-estado">Estado verificado</label><select id="f-estado"><option value="">Todos</option></select></div>

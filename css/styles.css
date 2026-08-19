@@ -63,11 +63,23 @@ label { display: block; font-size: 13px; font-weight: 600; color: var(--gris-osc
 .tab { border: 1px solid var(--borde); background: var(--blanco); border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: var(--tinta); }
 .tab.activa { background: var(--azul); border-color: var(--azul); color: #fff; }
 
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 0 0 18px; }
-.kpi { background: var(--blanco); border: 1px solid var(--linea); border-radius: var(--radio); padding: 14px 16px; box-shadow: var(--sombra); border-top: 3px solid var(--gris-claro); }
-.kpi .valor { font-size: 30px; font-weight: 700; color: var(--negro); line-height: 1.1; font-variant-numeric: tabular-nums; }
-.kpi .etiqueta { font-size: 12.5px; color: var(--gris-oscuro); margin-top: 4px; }
-.kpi .detalle { font-size: 12px; color: var(--gris); margin-top: 2px; }
+/* Hero: los dos números que importan (gestión efectiva + encuestas completas), en vez de
+   6 tarjetas que repetían los mismos números de la barra de estado. */
+.hero { padding: 0; overflow: hidden; }
+.hero .col { padding: 20px 24px; }
+.hero .col + .col { border-top: 1px solid var(--linea); }
+.hero .rot { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gris-oscuro); margin-bottom: 6px; }
+.hero .big { font-size: 42px; font-weight: 800; line-height: 1; color: var(--negro); font-variant-numeric: tabular-nums; }
+.hero .big .de { font-size: 19px; font-weight: 600; color: var(--gris); }
+.hero .col.enc .big { color: var(--exito); }
+.hero .prog { height: 8px; border-radius: 5px; background: var(--neutro); border: 1px solid var(--linea); overflow: hidden; margin: 13px 0 12px; display: flex; }
+.hero .prog i { display: block; height: 100%; }
+.hero .desglose { list-style: none; margin: 0; padding: 0; font-size: 13.5px; }
+.hero .desglose li { display: flex; align-items: center; gap: 8px; padding: 3px 0; color: var(--gris-oscuro); }
+.hero .desglose .pt { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.hero .desglose b { color: var(--negro); }
+@media (min-width: 720px) { .hero { display: grid; grid-template-columns: 1.6fr 1fr; }
+  .hero .col + .col { border-top: 0; border-left: 1px solid var(--linea); } }
 .kpi.si { border-top-color: var(--e-si); } .kpi.faltan { border-top-color: var(--azul); } .kpi.resp { border-top-color: var(--e-resp); }
 .kpi.int { border-top-color: var(--e-int); } .kpi.correo { border-top-color: var(--e-correo); } .kpi.sin { border-top-color: var(--e-sin); }
 
