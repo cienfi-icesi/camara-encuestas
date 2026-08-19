@@ -336,13 +336,20 @@
       const fila = `<tr class="fila" data-id="${e.id}">
         <td class="mono">${e.id}</td>
         <td><b>${esc(e.empresa)}</b>${PERSONA === 'TODAS' ? `<div style="font-size:12px;color:#88898C">${NOMBRE_PERSONA[e.persona] || e.persona}</div>` : ''}${e.override ? ' <span class="chip gris" title="corregido a mano">override</span>' : ''}</td>
-        <td><span class="chip ${v.estado_verificado}">${ETIQUETA[v.estado_verificado] || v.estado_verificado}</span></td>
+        <td><span class="chip ${v.estado_verificado}">${ETIQUETA[v.estado_verificado] || v.estado_verificado}</span>${e.cerrada_por_encuesta ? ' <span class="chip encuesta" title="La encuesta ya se diligenció, aunque no haya evidencia de contacto en la carpeta">encuesta diligenciada</span>' : ''}</td>
         <td>${esc(e.declarado.contacto || '—')}${e.declarado.n_llamadas != null ? ` <span style="color:#88898C">· ${e.declarado.n_llamadas} llam.</span>` : ''}${v.coincide_con_declarado === false ? ' <span class="discrepancia" title="declarado ≠ evidencia">≠</span>' : ''}</td>
         <td>${fmtFecha(v.fecha_ultima_gestion)}</td>
         <td>${e.evidencia.n_archivos}${e.evidencia.n_relatorias ? ` <span style="color:#88898C">(${e.evidencia.n_relatorias} relat.)</span>` : ''}</td>
         <td>${v.confianza != null ? Math.round(v.confianza * 100) + '%' : '—'}</td></tr>`;
       if (abierta !== e.id) return fila;
+      const enc = e.encuesta;
       return fila + `<tr class="detalle"><td colspan="7"><div class="detalle-grid">
+        ${enc && enc.diligenciada ? `<div style="grid-column:1/-1;background:#EAF5EE;border-radius:6px;padding:8px 10px;color:#0F5C2E">
+           <b>Encuesta diligenciada</b> (${enc.porcentaje}%${enc.completa ? ', los 4 módulos' : ', con un módulo justificado como no aplicable'})
+           ${enc.autodiligenciada ? '· la respondió la empresa por su cuenta' : (enc.aplicada_por ? `· la aplicó ${esc(NOMBRE_PERSONA[enc.aplicada_por] || enc.aplicada_por)}` : '')}
+           ${enc.ultima_modificacion ? `· ${fmtFecha(enc.ultima_modificacion)}` : ''}.
+           El estado de contacto de abajo describe la evidencia documental, no si la encuesta está hecha — ya lo está.
+         </div>` : ''}
         <div style="grid-column:1/-1"><b>Resumen:</b> ${esc(v.resumen || '—')}</div>
         <div style="grid-column:1/-1"><b>Siguiente paso:</b> ${esc(v.siguiente_paso || '—')}</div>
         <div><b>Respuesta:</b> ${v.hubo_respuesta_empresa ? 'sí (' + esc(v.tipo_respuesta) + ')' : 'no'} · ${v.n_intentos_evidenciados || 0} intentos${(v.canales_evidenciados || []).length ? ' · ' + esc(v.canales_evidenciados.join(', ')) : ''}</div>

@@ -94,7 +94,10 @@ label { display: block; font-size: 13px; font-weight: 600; color: var(--gris-osc
 .barra span { display: block; height: 100%; }
 .leyenda { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; font-size: 12.5px; color: var(--gris-oscuro); }
 .leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
-.svg-grafico { width: 100%; height: auto; display: block; }
+/* Los gráficos se dibujan en un viewBox de 560 de ancho: sin tope, "width:100%" los estira al
+   ancho completo de la tarjeta (ahora de ancho completo, tras quitar el layout en paralelo) y
+   el texto queda gigante. Se limita al tamaño para el que fueron dibujados. */
+.svg-grafico { width: 100%; max-width: 600px; height: auto; display: block; }
 
 /* listas priorizadas */
 .lista { list-style: none; margin: 0; padding: 0; }
@@ -113,6 +116,7 @@ label { display: block; font-size: 13px; font-weight: 600; color: var(--gris-osc
 .chip.respondio_sin_decision { background: var(--e-resp); } .chip.intento_sin_respuesta { background: var(--e-int); }
 .chip.solo_correo { background: var(--e-correo); } .chip.sin_gestion { background: var(--e-sin); }
 .chip.gris { background: var(--gris-claro); color: var(--tinta); }
+.chip.encuesta { background: var(--exito); }
 
 /* tabla de empresas */
 .filtros { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 12px; }
