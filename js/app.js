@@ -193,7 +193,7 @@
         : 'Esta corrida se hizo en modo heurístico (reglas sobre cabeceras de correo y palabras clave, sin el modelo). Los estados son una aproximación; la corrida con claude-sonnet-5 los afina.';
       aviso.classList.remove('oculto');
     } else aviso.classList.add('oculto');
-    renderHero(r); renderFeedback(); renderBarra(r); renderEncuestas(r); renderHoy(); renderSeguimientos(); renderTabla();
+    renderHero(r); renderFeedback(); renderBarra(r); renderHoy(); renderSeguimientos(); renderTabla();
   }
 
   // Hero: los dos números que importan. "Gestión efectiva" = avance real (la empresa
@@ -252,14 +252,40 @@
     return c;
   }
 
+  // "Gestión efectiva" = respondieron con algo (aceptaron, agendaron, dijeron sí, respondieron
+  // sin decidir, incluso rechazaron explícitamente). "Sin avance" = intentos sin respuesta o
+  // carpeta vacía. Se separan visualmente con un espacio en la barra + dos leyendas apiladas.
+  const CAT_EFECTIVA = ['encuesta_diligenciada', 'diligenciando', 'agendada', 'aceptada',
+                        'respondio_sin_decision', 'no_participa'];
+  const CAT_SIN_AVANCE = ['intento', 'sin_gestion'];
+
   function renderBarra(r) {
     const total = r.total || 1;
     const c = conteosPorCategoria();
-    $('t-barra').innerHTML = CATEGORIAS.map((k) => {
-      const n = c[k];
-      return n ? `<span style="width:${(100 * n / total).toFixed(2)}%;background:${COLOR_CAT[k]}" title="${ETIQUETA_CAT[k]}: ${n}"></span>` : '';
-    }).join('');
-    $('t-leyenda').innerHTML = CATEGORIAS.map((k) => `<span><i style="background:${COLOR_CAT[k]}"></i>${ETIQUETA_CAT[k]}: <b>${c[k]}</b> (${(100 * c[k] / total).toFixed(0)}%)</span>`).join('');
+    const suma = (arr) => arr.reduce((a, k) => a + c[k], 0);
+    const nEf = suma(CAT_EFECTIVA), nSA = suma(CAT_SIN_AVANCE);
+    const pct = (n) => (100 * n / total).toFixed(0);
+    const seg = (grupo) => grupo
+      .filter((k) => c[k])
+      .map((k) => `<span style="flex:${c[k]};background:${COLOR_CAT[k]}" title="${ETIQUETA_CAT[k]}: ${c[k]}"></span>`)
+      .join('');
+    const item = (k) => `<span class="li"><i style="background:${COLOR_CAT[k]}"></i>${ETIQUETA_CAT[k]}: <b>${c[k]}</b> <span class="pct">(${pct(c[k])}%)</span></span>`;
+    // Dos "sub-barras" con un pequeño gap entre ellas, proporcionales al total real.
+    $('t-estado').innerHTML = `
+      <div class="grupos" style="display:flex;gap:6px;align-items:stretch;margin:6px 0 10px">
+        <div style="flex:${nEf || 0.001};display:flex;height:24px;border-radius:6px 0 0 6px;overflow:hidden;border:1px solid var(--linea);border-right:0">${seg(CAT_EFECTIVA)}</div>
+        <div style="flex:${nSA || 0.001};display:flex;height:24px;border-radius:0 6px 6px 0;overflow:hidden;border:1px solid var(--linea);border-left:0">${seg(CAT_SIN_AVANCE)}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;font-size:13px">
+        <div>
+          <div class="rot" style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--exito);margin-bottom:6px">Gestión efectiva · ${nEf} (${pct(nEf)}%)</div>
+          <div class="leyenda">${CAT_EFECTIVA.map(item).join('')}</div>
+        </div>
+        <div>
+          <div class="rot" style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--peligro);margin-bottom:6px">Sin avance · ${nSA} (${pct(nSA)}%)</div>
+          <div class="leyenda">${CAT_SIN_AVANCE.map(item).join('')}</div>
+        </div>
+      </div>`;
   }
 
   // ---- Feedback de ayer: qué pasó con las N empresas que se propusieron ayer ----
