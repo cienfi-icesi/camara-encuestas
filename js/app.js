@@ -15,6 +15,51 @@
     contacto_efectivo_si: '#147A3D', contacto_efectivo_no: '#5A5C61', respondio_sin_decision: '#395CE0',
     intento_sin_respuesta: '#8A6D1F', solo_correo: '#C0562F', sin_gestion: '#B3261E'
   };
+
+  // CATEGORÍAS DE DISPLAY — agrupación pedida por Eduard (2026-08-19) para hacer más claro el
+  // estado de cada empresa. NO cambia la taxonomía interna que produce el modelo (esa sigue con
+  // los 6 ESTADOS), solo cómo se presenta en el tablero. Ventaja: no hay que reprocesar nada,
+  // se calcula al vuelo desde el estado + `cerrada_por_encuesta`.
+  //   encuesta_diligenciada  ← contacto_efectivo_si con encuesta hecha (verde oscuro)
+  //   agendada               ← contacto_efectivo_si sin encuesta aún (verde)
+  //   respondio_sin_decision ← respondio_sin_decision (azul)
+  //   no_participa           ← contacto_efectivo_no (gris)
+  //   intento                ← intento_sin_respuesta + solo_correo (naranja, unificado)
+  //   sin_gestion            ← sin_gestion (rojo)
+  // Los positivos se subdividen (pedido Eduard, 2026-08-19): "aceptó" no es igual a
+  // "agendó" ni a "está diligenciando". El sub-estado sale de `verificado.sub_estado_efectivo`
+  // (poblado por el modelo, ver prompt corroborar_sistema.md).
+  const CATEGORIAS = ['encuesta_diligenciada', 'diligenciando', 'agendada', 'aceptada',
+                      'respondio_sin_decision', 'no_participa', 'intento', 'sin_gestion'];
+  const ETIQUETA_CAT = {
+    encuesta_diligenciada: 'Encuesta diligenciada', diligenciando: 'Diligenciando encuesta',
+    agendada: 'Entrevista agendada', aceptada: 'Aceptó, sin agenda',
+    respondio_sin_decision: 'Respondió, sin decisión', no_participa: 'No desea participar',
+    intento: 'Intentos (correo o llamada)', sin_gestion: 'Sin gestión'
+  };
+  const COLOR_CAT = {
+    encuesta_diligenciada: '#0F5C2E', diligenciando: '#147A3D', agendada: '#2E9F5C',
+    aceptada: '#4EAF7B', respondio_sin_decision: '#395CE0', no_participa: '#5A5C61',
+    intento: '#C0562F', sin_gestion: '#B3261E'
+  };
+  function categoria(e) {
+    const v = e.verificado;
+    const s = v.estado_verificado;
+    if (s === 'contacto_efectivo_si') {
+      if (e.cerrada_por_encuesta) return 'encuesta_diligenciada';
+      const sub = v.sub_estado_efectivo;
+      if (sub === 'diligenciando') return 'diligenciando';
+      if (sub === 'agendado') return 'agendada';
+      if (sub === 'aceptado') return 'aceptada';
+      // Fallback (veredicto viejo sin sub_estado): agrupar como "agendada" — que era el
+      // comportamiento anterior. Se corrige la próxima vez que el modelo revise la empresa.
+      return 'agendada';
+    }
+    if (s === 'contacto_efectivo_no') return 'no_participa';
+    if (s === 'respondio_sin_decision') return 'respondio_sin_decision';
+    if (s === 'intento_sin_respuesta' || s === 'solo_correo') return 'intento';
+    return 'sin_gestion';
+  }
   const NOMBRE_PERSONA = { Diana: 'Diana', Leonardo: 'Leonardo', Angela: 'Ángela' };
   const POR_PAGINA = 50;
 
@@ -67,7 +112,7 @@
       renderTabla();
     }));
     const sel = $('f-estado');
-    ESTADOS.forEach((s) => { const o = document.createElement('option'); o.value = s; o.textContent = ETIQUETA[s]; sel.appendChild(o); });
+    CATEGORIAS.forEach((k) => { const o = document.createElement('option'); o.value = k; o.textContent = ETIQUETA_CAT[k]; sel.appendChild(o); });
   }
 
   async function entrar(ev) {
@@ -139,7 +184,7 @@
         : 'Esta corrida se hizo en modo heurístico (reglas sobre cabeceras de correo y palabras clave, sin el modelo). Los estados son una aproximación; la corrida con claude-sonnet-5 los afina.';
       aviso.classList.remove('oculto');
     } else aviso.classList.add('oculto');
-    renderHero(r); renderBarra(r); renderEncuestas(r); renderHoy(); renderSeguimientos(); renderTabla();
+    renderHero(r); renderFeedback(); renderBarra(r); renderEncuestas(r); renderHoy(); renderSeguimientos(); renderTabla();
   }
 
   // Hero: los dos números que importan. "Gestión efectiva" = avance real (la empresa
@@ -174,21 +219,106 @@
           <i style="width:${w(resp)}%;background:${COLOR.respondio_sin_decision}"></i>
           <i style="width:${w(no)}%;background:${COLOR.contacto_efectivo_no}"></i>
         </div>
-        <ul class="desglose">
-          <li><span class="pt" style="background:${COLOR.contacto_efectivo_si}"></span> <b>${si}</b> aceptaron o agendaron</li>
-          <li><span class="pt" style="background:${COLOR.respondio_sin_decision}"></span> <b>${resp}</b> respondieron, sin decidir aún <span style="color:var(--gris)">· seguimiento a 3–4 días</span></li>
-          <li><span class="pt" style="background:${COLOR.contacto_efectivo_no}"></span> <b>${no}</b> no desea participar <span style="color:var(--gris)">· cerrada</span></li>
-        </ul>
+        ${(() => {
+          const c = conteosPorCategoria();
+          const items = [
+            { k: 'encuesta_diligenciada', txt: 'ya contestaron la encuesta' },
+            { k: 'diligenciando', txt: 'diligenciando la encuesta ahora' },
+            { k: 'agendada', txt: 'con entrevista agendada' },
+            { k: 'aceptada', txt: 'aceptaron, falta coordinar fecha' },
+            { k: 'respondio_sin_decision', txt: 'respondieron, sin decidir aún', extra: '· seguimiento a 3–4 días' },
+            { k: 'no_participa', txt: 'no desean participar', extra: '· cerrada' },
+          ];
+          return `<ul class="desglose">` + items
+            .filter((x) => c[x.k])
+            .map((x) => `<li><span class="pt" style="background:${COLOR_CAT[x.k]}"></span> <b>${c[x.k]}</b> ${x.txt}${x.extra ? ` <span style="color:var(--gris)">${x.extra}</span>` : ''}</li>`)
+            .join('') + `</ul>`;
+        })()}
       </div>${colEnc}`;
+  }
+
+  function conteosPorCategoria() {
+    const c = Object.fromEntries(CATEGORIAS.map((k) => [k, 0]));
+    empresasActivas().forEach((e) => { c[categoria(e)]++; });
+    return c;
   }
 
   function renderBarra(r) {
     const total = r.total || 1;
-    $('t-barra').innerHTML = ESTADOS.map((s) => {
-      const n = r.por_estado[s] || 0;
-      return n ? `<span style="width:${(100 * n / total).toFixed(2)}%;background:${COLOR[s]}" title="${ETIQUETA[s]}: ${n}"></span>` : '';
+    const c = conteosPorCategoria();
+    $('t-barra').innerHTML = CATEGORIAS.map((k) => {
+      const n = c[k];
+      return n ? `<span style="width:${(100 * n / total).toFixed(2)}%;background:${COLOR_CAT[k]}" title="${ETIQUETA_CAT[k]}: ${n}"></span>` : '';
     }).join('');
-    $('t-leyenda').innerHTML = ESTADOS.map((s) => `<span><i style="background:${COLOR[s]}"></i>${ETIQUETA[s]}: <b>${r.por_estado[s] || 0}</b> (${(100 * (r.por_estado[s] || 0) / total).toFixed(0)}%)</span>`).join('');
+    $('t-leyenda').innerHTML = CATEGORIAS.map((k) => `<span><i style="background:${COLOR_CAT[k]}"></i>${ETIQUETA_CAT[k]}: <b>${c[k]}</b> (${(100 * c[k] / total).toFixed(0)}%)</span>`).join('');
+  }
+
+  // ---- Feedback de ayer: qué pasó con las N empresas que se propusieron ayer ----
+  // Se muestra solo cuando hay datos de una lista previa. La corrida de HOY compara ids de la
+  // lista de AYER contra el estado actual y los clasifica: cerradas (efectivas), a_seguimiento
+  // (respondió sin decisión), rotadas (con evidencia de intento) o arrastradas (sin evidencia,
+  // vuelven hoy). Ver agente/priorizar.py:calcular. Objetivo pedido por Eduard (2026-08-19):
+  // que cada encuestador vea si logró convertir las propuestas de ayer en avance real.
+  function bloquesFeedback(persona) {
+    const p = (DATOS.prioridades || {})[persona];
+    if (!p) return null;
+    // El feedback compara la lista de ayer contra el estado de hoy. Si `fecha_lista_previa`
+    // es la MISMA que la corrida actual, es que hoy ya hubo varias corridas y no hay
+    // información nueva que comparar (visto 2026-08-19: dio 0/15 falso). Se oculta.
+    if (p.fecha_lista_previa && p.fecha_lista_previa === DATOS.fecha_corrida) return null;
+    const cerradas = (p.cerradas_desde_lista || []).length;
+    const respondieron = (p.a_seguimiento || []).length;
+    const rotadas = (p.rotadas_ayer || []).length;
+    const arrastradas = (p.hoy || []).filter((x) => x.motivo === 'arrastrada').length;
+    const total = cerradas + respondieron + rotadas + arrastradas;
+    return { total, cerradas, respondieron, rotadas, arrastradas, fecha_prev: p.fecha_lista_previa };
+  }
+
+  function renderFeedback() {
+    const cont = $('t-feedback');
+    let personas = PERSONA === 'TODAS'
+      ? (DATOS.personas || Object.keys(DATOS.resumen).filter((k) => k !== 'TOTAL'))
+      : [PERSONA];
+    const filas = personas.map((p) => ({ persona: p, ...(bloquesFeedback(p) || { total: 0 }) }))
+                          .filter((f) => f.total > 0);
+    if (!filas.length) {
+      cont.classList.add('oculto');
+      return;
+    }
+    const fechaPrev = filas[0].fecha_prev;
+    cont.classList.remove('oculto');
+    const agr = filas.reduce((a, f) => ({
+      total: a.total + f.total, cerradas: a.cerradas + f.cerradas,
+      respondieron: a.respondieron + f.respondieron, rotadas: a.rotadas + f.rotadas,
+      arrastradas: a.arrastradas + f.arrastradas,
+    }), { total: 0, cerradas: 0, respondieron: 0, rotadas: 0, arrastradas: 0 });
+    const efec = agr.cerradas + agr.respondieron;
+    const tasa = agr.total ? Math.round(100 * efec / agr.total) : 0;
+    const desde = fechaPrev ? fmtFecha(fechaPrev) : 'la corrida anterior';
+    const titulo = PERSONA === 'TODAS'
+      ? `Feedback: qué pasó con las ${agr.total} empresas propuestas el ${desde} al equipo`
+      : `Feedback: qué pasó con tus ${agr.total} empresas propuestas el ${desde}`;
+    const items = [
+      { c: '#147A3D', t: 'lograron contacto efectivo cerrado',
+        n: agr.cerradas, ay: '(agendó, encuesta o rechazó explícito)' },
+      { c: '#395CE0', t: 'respondieron sin decisión',
+        n: agr.respondieron, ay: '(pasan a seguimiento a 3–4 días)' },
+      { c: '#8A6D1F', t: 'con intento documentado, sin respuesta',
+        n: agr.rotadas, ay: '(rotan unos días, dan espacio a otras)' },
+      { c: '#B3261E', t: 'sin evidencia de intento',
+        n: agr.arrastradas, ay: '(vuelven a salir hoy)' },
+    ];
+    const cuerpo = items.map((x) => x.n
+      ? `<li style="display:flex;align-items:baseline;gap:10px;padding:4px 0">
+           <span style="display:inline-block;width:38px;text-align:right;font-weight:700;color:${x.c};font-size:18px">${x.n}</span>
+           <span>${x.t} <span style="color:var(--gris)">${x.ay}</span></span>
+         </li>` : '').join('');
+    cont.innerHTML = `
+      <h2>${esc(titulo)}</h2>
+      <p class="ayuda">Comparación entre las empresas propuestas en la corrida anterior y su estado hoy.
+        Gestión efectiva de las de ayer: <b style="color:var(--exito)">${tasa}%</b>
+        (${efec} de ${agr.total}).</p>
+      <ul style="list-style:none;margin:8px 0 0;padding:0;font-size:14px">${cuerpo}</ul>`;
   }
 
   // ------------------------------------------------------- encuestas (SVG plano, sin librerías)
@@ -313,7 +443,7 @@
   function filasFiltradas() {
     let f = empresasActivas();
     if (filtro.texto) f = f.filter((e) => (e.empresa || '').toLowerCase().includes(filtro.texto) || e.id.includes(filtro.texto));
-    if (filtro.estado) f = f.filter((e) => e.verificado.estado_verificado === filtro.estado);
+    if (filtro.estado) f = f.filter((e) => categoria(e) === filtro.estado);
     if (filtro.declarado) f = f.filter((e) => (e.declarado.contacto || 'sin_registro') === filtro.declarado);
     if (filtro.discrep) f = f.filter((e) => e.verificado.coincide_con_declarado === false);
     const clave = {
@@ -337,7 +467,7 @@
       const fila = `<tr class="fila" data-id="${e.id}">
         <td class="mono">${e.id}</td>
         <td><b>${esc(e.empresa)}</b>${PERSONA === 'TODAS' ? `<div style="font-size:12px;color:#88898C">${NOMBRE_PERSONA[e.persona] || e.persona}</div>` : ''}${e.override ? ' <span class="chip gris" title="corregido a mano">override</span>' : ''}</td>
-        <td><span class="chip ${v.estado_verificado}">${ETIQUETA[v.estado_verificado] || v.estado_verificado}</span>${e.cerrada_por_encuesta ? ' <span class="chip encuesta" title="La encuesta ya se diligenció, aunque no haya evidencia de contacto en la carpeta">encuesta diligenciada</span>' : ''}</td>
+        <td><span class="chip" style="background:${COLOR_CAT[categoria(e)]}">${ETIQUETA_CAT[categoria(e)]}</span></td>
         <td>${esc(e.declarado.contacto || '—')}${e.declarado.n_llamadas != null ? ` <span style="color:#88898C">· ${e.declarado.n_llamadas} llam.</span>` : ''}${v.coincide_con_declarado === false ? ' <span class="discrepancia" title="declarado ≠ evidencia">≠</span>' : ''}</td>
         <td>${fmtFecha(v.fecha_ultima_gestion)}</td>
         <td>${e.evidencia.n_archivos}${e.evidencia.n_relatorias ? ` <span style="color:#88898C">(${e.evidencia.n_relatorias} relat.)</span>` : ''}</td>
