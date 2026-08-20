@@ -37,10 +37,19 @@
     respondio_sin_decision: 'Respondió, sin decisión', no_participa: 'No desea participar',
     intento: 'Intentos (correo o llamada)', sin_gestion: 'Sin gestión'
   };
+  // Paleta de 8 colores distintos por hue (pedido de Eduard, 2026-08-20: "no quiero que se
+  // repitan colores"). Antes las cuatro categorías positivas eran cuatro tonos de verde muy
+  // parecidos entre sí. Ahora cada categoría vive en un hue propio:
+  //   verde bosque / teal / morado / mostaza / azul / gris / naranja / rojo.
   const COLOR_CAT = {
-    encuesta_diligenciada: '#0F5C2E', diligenciando: '#147A3D', agendada: '#2E9F5C',
-    aceptada: '#4EAF7B', respondio_sin_decision: '#395CE0', no_participa: '#5A5C61',
-    intento: '#C0562F', sin_gestion: '#B3261E'
+    encuesta_diligenciada: '#0F5C2E',   // verde bosque (mayor logro)
+    diligenciando: '#0E9384',            // teal
+    agendada: '#6B46C1',                 // morado
+    aceptada: '#A16207',                 // mostaza / oro oscuro
+    respondio_sin_decision: '#395CE0',   // azul (existente)
+    no_participa: '#5A5C61',             // gris (existente)
+    intento: '#C0562F',                  // naranja (existente)
+    sin_gestion: '#B3261E'               // rojo (existente)
   };
   function categoria(e) {
     const v = e.verificado;
@@ -450,7 +459,7 @@
       id: (e) => e.id, empresa: (e) => (e.empresa || '').toLowerCase(),
       estado: (e) => ESTADOS.indexOf(e.verificado.estado_verificado),
       declarado: (e) => e.declarado.contacto || 'zz', ultima: (e) => e.verificado.fecha_ultima_gestion || '',
-      n_archivos: (e) => e.evidencia.n_archivos || 0, confianza: (e) => e.verificado.confianza || 0,
+      n_archivos: (e) => e.evidencia.n_archivos || 0,
     }[orden.col] || ((e) => e.id);
     f = f.slice().sort((a, b) => { const x = clave(a), y = clave(b); return (x < y ? -1 : x > y ? 1 : 0) * (orden.asc ? 1 : -1); });
     return f;
@@ -471,10 +480,10 @@
         <td>${esc(e.declarado.contacto || '—')}${e.declarado.n_llamadas != null ? ` <span style="color:#88898C">· ${e.declarado.n_llamadas} llam.</span>` : ''}${v.coincide_con_declarado === false ? ' <span class="discrepancia" title="declarado ≠ evidencia">≠</span>' : ''}</td>
         <td>${fmtFecha(v.fecha_ultima_gestion)}</td>
         <td>${e.evidencia.n_archivos}${e.evidencia.n_relatorias ? ` <span style="color:#88898C">(${e.evidencia.n_relatorias} relat.)</span>` : ''}</td>
-        <td>${v.confianza != null ? Math.round(v.confianza * 100) + '%' : '—'}</td></tr>`;
+</tr>`;
       if (abierta !== e.id) return fila;
       const enc = e.encuesta;
-      return fila + `<tr class="detalle"><td colspan="7"><div class="detalle-grid">
+      return fila + `<tr class="detalle"><td colspan="6"><div class="detalle-grid">
         ${enc && enc.diligenciada ? `<div style="grid-column:1/-1;background:#EAF5EE;border-radius:6px;padding:8px 10px;color:#0F5C2E">
            <b>Encuesta diligenciada</b> (${enc.porcentaje}%${enc.completa ? ', los 4 módulos' : ', con un módulo justificado como no aplicable'})
            ${enc.autodiligenciada ? '· la respondió la empresa por su cuenta' : (enc.aplicada_por ? `· la aplicó ${esc(NOMBRE_PERSONA[enc.aplicada_por] || enc.aplicada_por)}` : '')}
@@ -491,7 +500,7 @@
         ${e.override ? `<div style="grid-column:1/-1"><b>Override:</b> ${esc(e.override.estado_verificado || '')} ${esc(e.override.nota || '')} (${esc(e.override.autor || '')}, ${esc(e.override.fecha || '')})</div>` : ''}
         ${v.error ? `<div class="discrepancia" style="grid-column:1/-1"><b>Error:</b> ${esc(v.error)}</div>` : ''}
       </div></td></tr>`;
-    }).join('') || '<tr><td colspan="7" class="vacio">Sin resultados para el filtro.</td></tr>';
+    }).join('') || '<tr><td colspan="6" class="vacio">Sin resultados para el filtro.</td></tr>';
     cuerpo.querySelectorAll('tr.fila').forEach((tr) => tr.addEventListener('click', () => { abierta = abierta === tr.dataset.id ? null : tr.dataset.id; renderTabla(); }));
     $('t-pag').innerHTML = `${f.length} empresas · página ${pagina} de ${paginas} ` +
       `<button class="boton secundario chico" ${pagina <= 1 ? 'disabled' : ''} id="pag-ant" type="button">‹</button>` +
