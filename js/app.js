@@ -214,7 +214,8 @@
     if (k === 'agenda') return { n: ((DATOS.agenda_semana || {}).entrevistas || []).length };
     if (k === 'auto') {
       const alerta = sumaPorPersona(DATOS.autodiligenciamiento, (b) => (b.alertas || []).length);
-      return { n: sumaPorPersona(DATOS.autodiligenciamiento, (b) => (b.pendientes || []).length), alerta: alerta > 0 };
+      return { n: sumaPorPersona(DATOS.autodiligenciamiento,
+                 (b) => (b.pendientes || []).length + (b.incompletas_aplicadas || []).length), alerta: alerta > 0 };
     }
     return {};
   }
@@ -606,8 +607,8 @@
     const g = DATOS.gestion_dia_anterior || {};
     $('t-gestion-titulo').textContent = `Gestión del ${g.dia || 'último día hábil'}`;
     $('t-gestion-ayuda').textContent =
-      'Qué empresas se trabajaron ese día, por qué medio y en qué quedó cada una. Se toma siempre el ' +
-      'último día hábil: el lunes muestra el viernes, porque el fin de semana no cuenta como día de gestión.';
+      'Qué empresas se trabajaron ese día, por qué medio y en qué quedó cada una. ' +
+      'Se toma siempre el último día hábil: el lunes muestra el viernes.';
     const cont = $('t-gestion');
     const pp = g.por_persona || {};
     const html = personasActivas().map((p) => {
@@ -705,7 +706,7 @@
     const a = DATOS.autodiligenciamiento || {};
     const pp = a.por_persona || {};
     const total = sumaPorPersona(a, (b) => (b.pendientes || []).length);
-    $('t-auto-titulo').textContent = `Diligenciamiento autónomo: ${total} en curso`;
+    $('t-auto-titulo').textContent = `Diligenciamiento autónomo: ${total} sin terminar`;
     $('t-auto-ayuda').textContent =
       `Avance real de cada empresa según el Reporte 3i, para no tener que abrirlo a mano. ` +
       `Una empresa se marca sin avanzar cuando lleva más de ${a.dias_estancado || 3} días hábiles sin tocar la encuesta.`;
@@ -730,7 +731,7 @@
       return `<div class="gestion-persona">
         ${PERSONA === 'TODAS' ? `<h3>${esc(NOMBRE_PERSONA[p] || p)}</h3>` : ''}
         <div class="cifras">
-          <span><b>${r.en_curso}</b> en curso</span>
+          <span><b>${r.con_avance}</b> con avance reciente</span>
           <span><b>${r.estancadas}</b> sin avanzar</span>
           <span><b>${r.sin_iniciar}</b> no han abierto la encuesta</span>
           <span><b>${r.finalizadas}</b> finalizadas</span>
@@ -741,6 +742,19 @@
              <th>Empresa</th><th>Acceso enviado</th><th>Avance</th><th>Módulos</th><th>Última actividad</th><th>Estado</th>
            </tr></thead><tbody>${filas}</tbody></table></div>`
           : vacio('Ninguna empresa con diligenciamiento autónomo pendiente.')}
+        ${(b.incompletas_aplicadas || []).length ? `
+          <h3 style="font-size:14px;margin:20px 0 4px">Encuestas que ${PERSONA === 'TODAS' ? esc(NOMBRE_PERSONA[p] || p) + ' aplicó' : 'aplicaste'} y quedaron incompletas (${b.incompletas_aplicadas.length})</h3>
+          <p class="ayuda">No son diligenciamiento autónomo: son entrevistas que quedaron a medias y también
+            tienen módulos pendientes por cerrar.</p>
+          <div class="tabla-wrap"><table class="compacta"><thead><tr>
+            <th>Empresa</th><th>Avance</th><th>Módulos</th><th>Última actividad</th></tr></thead><tbody>
+            ${b.incompletas_aplicadas.map((f) => `<tr>
+              <td><div class="empresa">${esc(f.empresa)}</div><div class="nota">id ${esc(f.id)}${f.persona_cartera && f.persona_cartera !== f.aplicada_por ? ' · cartera de ' + esc(NOMBRE_PERSONA[f.persona_cartera] || f.persona_cartera) : ''}</div></td>
+              <td class="avance"><div class="barra-mini"><i style="width:${f.porcentaje || 0}%"></i></div><div class="pct">${f.porcentaje || 0}%</div></td>
+              <td>${pildorasModulos(f.modulos_ok)}<div class="nota">faltan ${esc((f.modulos_pendientes || []).map((m) => NOMBRE_MODULO[m] || m).join(', '))}</div></td>
+              <td>${f.ultima_actividad ? esc(fmtFecha(f.ultima_actividad)) : '—'}
+                  ${f.dias_sin_avance != null ? `<div class="nota">hace ${f.dias_sin_avance} día(s) hábil(es)</div>` : ''}</td>
+            </tr>`).join('')}</tbody></table></div>` : ''}
         ${comp ? `<h3 style="font-size:14px;margin:18px 0 4px">Finalizadas (${(b.completadas || []).length})</h3>
            <p class="ayuda">Ya terminaron la encuesta. Salen de pendientes y no requieren seguimiento.</p>
            <ul style="margin:0;padding-left:18px;font-size:13.5px;columns:2">${comp}</ul>` : ''}

@@ -18,8 +18,10 @@
   }
  ],
  "fecha_corrida": "2026-08-23",
- "generado_en": "2026-08-23T07:29:04-05:00",
- "publicado_en": "2026-08-23T07:29:04-05:00",
+ "generado_en": "2026-08-23T23:20:14-05:00",
+ "actualizado_en": "2026-08-23T23:20:14-05:00",
+ "sello": "fd8686ccc654",
+ "publicado_en": "2026-08-23T23:20:14-05:00",
  "modo_modelo": 431,
  "modo_heuristico": 0,
  "modelo": "sonnet"
