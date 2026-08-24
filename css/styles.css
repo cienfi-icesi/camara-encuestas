@@ -138,3 +138,66 @@ table.tabla { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .discrepancia { color: var(--peligro); }
 .paginacion { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 10px; font-size: 13px; color: var(--gris-oscuro); }
 .aviso-modo { background: #FFF7E6; border: 1px solid #F1D9A6; color: #6B4E00; border-radius: var(--radio); padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
+
+/* --- secciones del tablero (pestañas) ------------------------------------ */
+/* Reutilizan .tab/.tabs; se separan visualmente de las pestañas de persona con una
+   línea inferior, para que se lea "esto navega dentro del tablero", no "esto filtra". */
+.tabs-seccion { border-bottom: 1px solid var(--linea); padding-bottom: 10px; margin: 0 0 18px; gap: 4px; }
+.tabs-seccion .tab { border-color: transparent; background: transparent; font-weight: 600; color: var(--gris-oscuro); }
+.tabs-seccion .tab:hover { background: var(--neutro); }
+.tabs-seccion .tab.activa { background: var(--azul-fondo); border-color: var(--azul-fondo); color: var(--azul-hover); }
+.tabs-seccion .tab .n { font-size: 11.5px; font-weight: 700; margin-left: 6px; color: var(--gris); }
+.tabs-seccion .tab.activa .n { color: var(--azul); }
+.tabs-seccion .tab .n.alerta { color: var(--naranja); }
+
+/* --- sello y frescura de los datos --------------------------------------- */
+.sello { font-family: var(--mono); font-size: 11.5px; color: var(--gris); }
+.aviso-desfase { background: #FDECEA; border: 1px solid #F3C0BB; color: #8A2018; border-radius: var(--radio);
+  padding: 10px 14px; font-size: 13.5px; margin-bottom: 14px; }
+.aviso-desfase b { color: #6B1610; }
+
+/* --- gestión diaria ------------------------------------------------------- */
+.gestion-persona + .gestion-persona { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--linea); }
+.gestion-persona h3 { font-size: 14px; margin: 0 0 2px; color: var(--negro); }
+.cifras { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--gris-oscuro); margin: 6px 0 12px; }
+.cifras b { color: var(--negro); font-variant-numeric: tabular-nums; }
+
+/* --- tablas compactas (gestión, agenda, autodiligenciamiento, bitácora) --- */
+table.compacta { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.compacta th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--gris-oscuro); padding: 6px 10px; border-bottom: 2px solid var(--linea); white-space: nowrap; }
+table.compacta td { padding: 9px 10px; border-bottom: 1px solid var(--linea); vertical-align: top; }
+table.compacta tr:last-child td { border-bottom: 0; }
+table.compacta .empresa { font-weight: 600; color: var(--negro); }
+table.compacta .nota { font-size: 12px; color: var(--gris); margin-top: 2px; }
+.chip.tenue { background: var(--neutro); color: var(--gris-oscuro); border: 1px solid var(--borde); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* --- píldoras de módulos del cuestionario -------------------------------- */
+.modulos { display: flex; gap: 3px; }
+.modulos span { font-size: 10.5px; font-weight: 700; letter-spacing: .02em; padding: 2px 6px; border-radius: 4px;
+  background: var(--neutro); color: var(--gris-claro); border: 1px solid var(--linea); }
+.modulos span.ok { background: #E6F4F1; color: #0B6157; border-color: #BEE3DC; }
+.avance { width: 92px; }
+.avance .barra-mini { height: 6px; border-radius: 4px; background: var(--neutro); border: 1px solid var(--linea); overflow: hidden; }
+.avance .barra-mini i { display: block; height: 100%; background: #0E9384; }
+.avance .pct { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--gris-oscuro); margin-top: 3px; }
+
+/* --- comparación entre encuestadores ------------------------------------- */
+.comp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.comp-tarjeta { border: 1px solid var(--linea); border-radius: var(--radio); padding: 14px 16px; background: var(--blanco); }
+.comp-tarjeta h3 { font-size: 15px; margin: 0 0 10px; color: var(--negro); }
+.comp-tarjeta dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 5px 10px; font-size: 13px; }
+.comp-tarjeta dt { color: var(--gris-oscuro); }
+.comp-tarjeta dd { margin: 0; font-weight: 700; color: var(--negro); font-variant-numeric: tabular-nums; }
+.comp-tarjeta .destacado { color: var(--exito); }
+.barra-medios { display: flex; height: 20px; border-radius: 5px; overflow: hidden; border: 1px solid var(--linea); }
+.barra-medios span { display: block; height: 100%; }
+
+/* --- bitácora ------------------------------------------------------------- */
+.bit-resumen { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 14px; }
+.bit-resumen div { border: 1px solid var(--linea); border-radius: var(--radio); padding: 10px 14px; min-width: 118px; }
+.bit-resumen .v { font-size: 22px; font-weight: 800; color: var(--negro); line-height: 1; font-variant-numeric: tabular-nums; }
+.bit-resumen .e { font-size: 11.5px; color: var(--gris-oscuro); margin-top: 4px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+.bit-resumen .v.si { color: var(--exito); } .bit-resumen .v.no { color: var(--peligro); }
+tr.no-gestionada td { background: #FEF6F5; }

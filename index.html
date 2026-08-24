@@ -59,49 +59,100 @@
       <div class="tabs" id="t-tabs"></div>
     </div>
 
+    <!-- Aviso de datos viejos: salta cuando la corrida no es del último día hábil. -->
+    <div class="aviso-desfase oculto" id="t-desfase"></div>
     <div class="aviso-modo oculto" id="t-aviso"></div>
 
-    <div class="tarjeta hero" id="t-hero"></div>
+    <nav class="tabs tabs-seccion" id="t-secciones" aria-label="Secciones del tablero"></nav>
 
-    <div class="tarjeta oculto" id="t-feedback"></div>
+    <!-- ---------- Resumen ---------- -->
+    <div class="seccion" id="sec-resumen">
+      <div class="tarjeta hero" id="t-hero"></div>
 
-    <div class="tarjeta">
-      <h2>Estado de las empresas</h2>
-      <p class="ayuda">Cada empresa en una sola categoría según la evidencia. A la izquierda: hubo algún tipo de avance real. A la derecha: aún no se logra respuesta.</p>
-      <div id="t-estado"></div>
-    </div>
+      <div class="tarjeta oculto" id="t-feedback"></div>
 
-    <div class="tarjeta">
-      <h2 id="t-hoy-titulo">Hoy: empresas a intentar contactar</h2>
-      <p class="ayuda" id="t-hoy-ayuda"></p>
-      <ol class="lista" id="t-hoy"></ol>
-    </div>
-
-    <div class="tarjeta">
-      <h2>Seguimientos a 3–4 días</h2>
-      <p class="ayuda">Respondieron pero quedaron sin decisión; toca el segundo contacto.</p>
-      <ul class="lista" id="t-seguimientos"></ul>
-    </div>
-
-    <div class="tarjeta">
-      <h2>Todas las empresas</h2>
-      <p class="ayuda">Haz clic en una fila para ver el detalle (resumen, siguiente paso, discrepancias).</p>
-      <div class="filtros">
-        <div><label for="f-buscar">Buscar</label><input id="f-buscar" placeholder="empresa o id"></div>
-        <div><label for="f-estado">Estado verificado</label><select id="f-estado"><option value="">Todos</option></select></div>
-        <div><label for="f-declarado">Declarado</label><select id="f-declarado"><option value="">Todos</option><option value="efectivo">efectivo</option><option value="fallido">fallido</option><option value="pendiente">pendiente</option><option value="sin_registro">sin registro</option></select></div>
-        <div><label for="f-discrep">Solo discrepancias</label><select id="f-discrep"><option value="">No</option><option value="1">Sí</option></select></div>
+      <div class="tarjeta">
+        <h2>Estado de las empresas</h2>
+        <p class="ayuda">Cada empresa en una sola categoría según la evidencia. A la izquierda: hubo algún tipo de avance real. A la derecha: aún no se logra respuesta.</p>
+        <div id="t-estado"></div>
       </div>
-      <div class="tabla-wrap">
-        <table class="tabla" id="t-tabla">
-          <thead><tr>
-            <th data-col="id">ID</th><th data-col="empresa">Empresa</th><th data-col="estado">Verificado</th>
-            <th data-col="declarado">Declarado</th><th data-col="ultima">Última gestión</th><th data-col="n_archivos">Evidencia</th>
-          </tr></thead>
-          <tbody id="t-cuerpo"></tbody>
-        </table>
+
+      <div class="tarjeta">
+        <h2 id="t-hoy-titulo">Hoy: empresas a intentar contactar</h2>
+        <p class="ayuda" id="t-hoy-ayuda"></p>
+        <ol class="lista" id="t-hoy"></ol>
       </div>
-      <div class="paginacion" id="t-pag"></div>
+
+      <div class="tarjeta">
+        <h2>Seguimientos a 3–4 días hábiles</h2>
+        <p class="ayuda">Respondieron pero quedaron sin decisión; toca el segundo contacto. El fin de semana no cuenta.</p>
+        <ul class="lista" id="t-seguimientos"></ul>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Todas las empresas</h2>
+        <p class="ayuda">Haz clic en una fila para ver el detalle (resumen, siguiente paso, discrepancias).</p>
+        <div class="filtros">
+          <div><label for="f-buscar">Buscar</label><input id="f-buscar" placeholder="empresa o id"></div>
+          <div><label for="f-estado">Estado verificado</label><select id="f-estado"><option value="">Todos</option></select></div>
+          <div><label for="f-declarado">Declarado</label><select id="f-declarado"><option value="">Todos</option><option value="efectivo">efectivo</option><option value="fallido">fallido</option><option value="pendiente">pendiente</option><option value="sin_registro">sin registro</option></select></div>
+          <div><label for="f-discrep">Solo discrepancias</label><select id="f-discrep"><option value="">No</option><option value="1">Sí</option></select></div>
+        </div>
+        <div class="tabla-wrap">
+          <table class="tabla" id="t-tabla">
+            <thead><tr>
+              <th data-col="id">ID</th><th data-col="empresa">Empresa</th><th data-col="estado">Verificado</th>
+              <th data-col="declarado">Declarado</th><th data-col="ultima">Última gestión</th><th data-col="n_archivos">Evidencia</th>
+            </tr></thead>
+            <tbody id="t-cuerpo"></tbody>
+          </table>
+        </div>
+        <div class="paginacion" id="t-pag"></div>
+      </div>
+    </div>
+
+    <!-- ---------- Gestión diaria ---------- -->
+    <div class="seccion oculto" id="sec-gestion">
+      <div class="tarjeta">
+        <h2 id="t-gestion-titulo">Gestión del último día hábil</h2>
+        <p class="ayuda" id="t-gestion-ayuda"></p>
+        <div id="t-gestion"></div>
+      </div>
+    </div>
+
+    <!-- ---------- Agenda de la semana ---------- -->
+    <div class="seccion oculto" id="sec-agenda">
+      <div class="tarjeta">
+        <h2 id="t-agenda-titulo">Entrevistas agendadas esta semana</h2>
+        <p class="ayuda" id="t-agenda-ayuda"></p>
+        <div id="t-agenda"></div>
+      </div>
+    </div>
+
+    <!-- ---------- Diligenciamiento autónomo ---------- -->
+    <div class="seccion oculto" id="sec-auto">
+      <div class="tarjeta">
+        <h2 id="t-auto-titulo">Empresas que están diligenciando la encuesta por su cuenta</h2>
+        <p class="ayuda" id="t-auto-ayuda"></p>
+        <div id="t-auto"></div>
+      </div>
+    </div>
+
+    <!-- ---------- Comparación (solo coordinación) ---------- -->
+    <div class="seccion oculto" id="sec-comparacion">
+      <div id="t-comparacion"></div>
+    </div>
+
+    <!-- ---------- Bitácora ---------- -->
+    <div class="seccion oculto" id="sec-bitacora">
+      <div class="tarjeta">
+        <h2>Bitácora diaria</h2>
+        <p class="ayuda">Qué empresas se sugirieron cada día y qué pasó con cada una. Solo días hábiles.</p>
+        <div class="filtros">
+          <div style="flex:0 0 200px"><label for="f-fecha">Fecha</label><select id="f-fecha"></select></div>
+        </div>
+        <div id="t-bitacora"></div>
+      </div>
     </div>
   </section>
 </main>

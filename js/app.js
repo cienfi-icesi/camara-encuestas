@@ -93,8 +93,41 @@
     return `${parseInt(m[3], 10)} ${meses[parseInt(m[2], 10) - 1]} ${m[1]}`;
   };
 
+  // Secciones del tablero. Cada una es una vista independiente sobre los mismos datos;
+  // antes todo vivía en una sola página larguísima y el trabajo del día quedaba enterrado
+  // bajo la tabla de 690 empresas.
+  const SECCIONES = [
+    { k: 'resumen', t: 'Resumen' },
+    { k: 'gestion', t: 'Gestión diaria' },
+    { k: 'agenda', t: 'Agenda de la semana' },
+    { k: 'auto', t: 'Diligenciamiento autónomo' },
+    { k: 'comparacion', t: 'Comparación', soloAdmin: true },
+    { k: 'bitacora', t: 'Bitácora' },
+  ];
+
   let DATOS = null;          // objeto descifrado
+  let SECCION = 'resumen';   // sección visible
+  let FESTIVOS = new Set();  // festivos colombianos, para saber cuál fue el último día hábil
   let PERSONA = null;        // persona activa (o 'TODAS' para admin)
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const esHabil = (d) => d.getDay() !== 0 && d.getDay() !== 6 && !FESTIVOS.has(iso(d));
+  // Último día hábil a fecha de HOY (no de cuando se generó el archivo): es lo que permite
+  // detectar que el tablero se quedó atrás, que es justo lo que nadie notó en agosto de 2026.
+  function ultimoHabil(desde) {
+    const d = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
+    while (!esHabil(d)) d.setDate(d.getDate() - 1);
+    return d;
+  }
+  const DIAS_SEM = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  function fmtDiaFecha(isoStr) {
+    if (!isoStr) return '—';
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoStr);
+    if (!m) return isoStr;
+    const d = new Date(+m[1], +m[2] - 1, +m[3]);
+    return `${DIAS_SEM[d.getDay()]} ${fmtFecha(isoStr)}`;
+  }
+  const fmtHora = (h) => (h ? h : '—');
+
   let filtro = { texto: '', estado: '', declarado: '', discrep: '' };
   let orden = { col: 'estado', asc: true };
   let pagina = 1;
@@ -157,8 +190,10 @@
     $('vista-tablero').classList.remove('oculto');
     $('sesion').classList.remove('oculto');
     $('sesion-nombre').textContent = DATOS.rol === 'admin' ? 'Coordinación (admin)' : (DATOS.nombre || DATOS.usuario || '');
+    FESTIVOS = new Set(DATOS.festivos || []);
     const personas = personasDisponibles();
     PERSONA = DATOS.rol === 'admin' ? 'TODAS' : personas[0];
+    SECCION = 'resumen';
     const tabs = $('t-tabs'); tabs.innerHTML = '';
     if (DATOS.rol === 'admin') {
       ['TODAS'].concat(personas).forEach((p) => {
@@ -172,6 +207,41 @@
     window.scrollTo(0, 0);
   }
 
+  // Contadores que van en la pestaña de cada sección: sirven para ver de un vistazo dónde
+  // hay trabajo pendiente sin tener que entrar a mirar.
+  function contadorSeccion(k) {
+    if (k === 'gestion') return { n: sumaPorPersona(DATOS.gestion_dia_anterior, (b) => b.resumen.n_empresas) };
+    if (k === 'agenda') return { n: ((DATOS.agenda_semana || {}).entrevistas || []).length };
+    if (k === 'auto') {
+      const alerta = sumaPorPersona(DATOS.autodiligenciamiento, (b) => (b.alertas || []).length);
+      return { n: sumaPorPersona(DATOS.autodiligenciamiento, (b) => (b.pendientes || []).length), alerta: alerta > 0 };
+    }
+    return {};
+  }
+
+  function sumaPorPersona(bloque, f) {
+    const pp = (bloque || {}).por_persona || {};
+    return personasActivas().reduce((a, p) => a + (pp[p] ? (f(pp[p]) || 0) : 0), 0);
+  }
+
+  // Las personas cuyos datos hay que mostrar ahora mismo: las tres si el admin está en
+  // "Todo el equipo", o solo la seleccionada.
+  function personasActivas() {
+    return PERSONA === 'TODAS' ? personasDisponibles() : [PERSONA];
+  }
+
+  function renderSecciones() {
+    const nav = $('t-secciones'); nav.innerHTML = '';
+    SECCIONES.filter((s) => !s.soloAdmin || DATOS.rol === 'admin').forEach((sec) => {
+      const c = contadorSeccion(sec.k);
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'tab' + (sec.k === SECCION ? ' activa' : '');
+      b.innerHTML = esc(sec.t) + (c.n ? ` <span class="n${c.alerta ? ' alerta' : ''}">${c.n}</span>` : '');
+      b.addEventListener('click', () => { SECCION = sec.k; abierta = null; render(); window.scrollTo(0, 0); });
+      nav.appendChild(b);
+    });
+  }
+
   function empresasActivas() {
     return PERSONA === 'TODAS' ? DATOS.empresas : DATOS.empresas.filter((e) => e.persona === PERSONA);
   }
@@ -183,9 +253,7 @@
     const r = resumenActivo();
     const quien = PERSONA === 'TODAS' ? 'Todo el equipo' : (NOMBRE_PERSONA[PERSONA] || PERSONA);
     $('t-titulo').textContent = `Tablero de ${quien}`;
-    // Solo la fecha: el total de empresas ya se ve en el hero ("N de 690") y el detalle de
-    // modelo/heurística solo importa cuando queda algo sin revisar — para eso está el aviso.
-    $('t-meta').textContent = `Corrida del ${fmtFecha(DATOS.fecha_corrida)}`;
+    renderCabecera();
     const aviso = $('t-aviso');
     if (r.modo_heuristico > 0) {
       aviso.textContent = r.modo_modelo > 0
@@ -193,7 +261,35 @@
         : 'Esta corrida se hizo en modo heurístico (reglas sobre cabeceras de correo y palabras clave, sin el modelo). Los estados son una aproximación; la corrida con claude-sonnet-5 los afina.';
       aviso.classList.remove('oculto');
     } else aviso.classList.add('oculto');
-    renderHero(r); renderFeedback(); renderBarra(r); renderHoy(); renderSeguimientos(); renderTabla();
+
+    renderSecciones();
+    SECCIONES.forEach((sec) => $('sec-' + sec.k).classList.toggle('oculto', sec.k !== SECCION));
+    if (SECCION === 'resumen') {
+      renderHero(r); renderFeedback(); renderBarra(r); renderHoy(); renderSeguimientos(); renderTabla();
+    } else if (SECCION === 'gestion') renderGestion();
+    else if (SECCION === 'agenda') renderAgenda();
+    else if (SECCION === 'auto') renderAuto();
+    else if (SECCION === 'comparacion') renderComparacion();
+    else if (SECCION === 'bitacora') renderBitacora();
+  }
+
+  // Fecha, hora y sello de la corrida + aviso si los datos no son del último día hábil.
+  // El sello es el mismo que valida el agente contra lo que sirve GitHub Pages: si aquí se
+  // ve uno y en el correo otro, es que algo no se publicó.
+  function renderCabecera() {
+    const hora = (DATOS.actualizado_en || DATOS.generado_en || '').slice(11, 16);
+    $('t-meta').innerHTML = `Actualizado el ${esc(fmtDiaFecha(DATOS.fecha_corrida))}` +
+      (hora ? ` a las ${esc(hora)}` : '') +
+      (DATOS.sello ? ` · <span class="sello" title="Identificador de esta corrida. Debe coincidir con el del correo diario.">sello ${esc(DATOS.sello)}</span>` : '');
+
+    const d = $('t-desfase');
+    const esperado = iso(ultimoHabil(new Date()));
+    if (DATOS.fecha_corrida && DATOS.fecha_corrida < esperado) {
+      d.innerHTML = `<b>Estos datos no están al día.</b> Son de la corrida del ${esc(fmtDiaFecha(DATOS.fecha_corrida))}, ` +
+        `y el último día hábil es ${esc(fmtDiaFecha(esperado))}. Lo que veas aquí puede no coincidir con tu correo ` +
+        `de hoy: avísale a la coordinación para que revise la publicación del tablero.`;
+      d.classList.remove('oculto');
+    } else d.classList.add('oculto');
   }
 
   // Hero: los dos números que importan. "Gestión efectiva" = avance real (la empresa
@@ -357,29 +453,7 @@
   }
 
   // ------------------------------------------------------- encuestas (SVG plano, sin librerías)
-  const C_COMPLETA = '#147A3D', C_CURSO = '#8A6D1F', C_AUTO = '#395CE0', C_TENUE = '#D7D8DC';
-
-  /* Panel de encuestas. Sustituye al viejo "Declarado vs. verificado": lo que importa no es
-   * cuántas casillas se marcaron en el Excel, sino cuántas empresas efectivamente contestaron.
-   * Se adapta a quién mira: coordinación ve la comparación entre encuestadores; cada
-   * encuestador ve su propio embudo, de empresas asignadas a encuestas completas. */
-  function renderEncuestas(r) {
-    const cont = $('t-encuestas');
-    const meta = DATOS.encuestas_meta;
-    if (!r.encuestas || !r.encuestas.disponible) {
-      $('t-enc-ayuda').textContent = 'Del contacto a la encuesta contestada.';
-      cont.innerHTML = '<p class="ayuda" style="margin:6px 0 0">Todavía no hay datos de encuestas contestadas ' +
-        '(falta el export de <code>reporte_3i</code>).</p>';
-      return;
-    }
-    let nota = '';
-    if (meta && meta.dias_desactualizado != null && meta.dias_desactualizado > 10) {
-      nota = `<p class="ayuda" style="color:#8A6D1F;margin:10px 0 0"><b>Ojo:</b> el archivo de encuestas ` +
-             `se actualizó por última vez el ${fmtFecha(meta.actualizado)} (${meta.dias_desactualizado} días); ` +
-             `puede haber encuestas nuevas que no se ven aquí.</p>`;
-    }
-    cont.innerHTML = (PERSONA === 'TODAS' ? svgEquipo() : svgEmbudo(r)) + nota;
-  }
+  const C_COMPLETA = '#147A3D', C_CURSO = '#8A6D1F';
 
   // Coordinación: cuántas encuestas lleva cada quien. La barra separa diligenciadas (hechas)
   // de en curso; debajo se aclara cuántas de las diligenciadas tienen los 4 módulos.
@@ -411,33 +485,6 @@
            `<text x="${izq + 15}" y="${y + 13}" font-size="11.5" fill="#5A5C61">Diligenciada</text>` +
            `<rect x="${izq + 100}" y="${y + 4}" width="10" height="10" rx="2" fill="${C_CURSO}"></rect>` +
            `<text x="${izq + 115}" y="${y + 13}" font-size="11.5" fill="#5A5C61">En curso</text></svg>`;
-    return svg;
-  }
-
-  // Encuestador: el embudo real, de la cartera asignada a la encuesta diligenciada.
-  function svgEmbudo(r) {
-    const e = r.encuestas;
-    const dilig = e.diligenciadas != null ? e.diligenciadas : e.completas;
-    const pasos = [
-      { t: 'Empresas asignadas', v: r.total, c: C_TENUE, oscuro: true },
-      { t: 'Gestión efectiva', v: r.gestion_efectiva != null ? r.gestion_efectiva : r.contactadas_efectivamente, c: '#7A93F0' },
-      { t: 'Encuestas iniciadas', v: e.realizadas, c: C_CURSO },
-      { t: 'Encuestas diligenciadas', v: dilig, c: C_COMPLETA },
-    ];
-    const max = Math.max(1, r.total);
-    const W = 560, alto = 38, izq = 210, anchoMax = W - izq - 60;
-    let y = 4;
-    let svg = `<svg class="svg-grafico" viewBox="0 0 ${W} ${pasos.length * alto + 30}" role="img" aria-label="Embudo hasta la encuesta">`;
-    pasos.forEach((p) => {
-      const w = Math.max(2, anchoMax * p.v / max);
-      svg += `<text x="${izq - 8}" y="${y + 22}" text-anchor="end" font-size="12.5" fill="#26272B">${esc(p.t)}</text>` +
-             `<rect x="${izq}" y="${y + 8}" width="${w}" height="18" rx="3" fill="${p.c}"></rect>` +
-             `<text x="${izq + w + 7}" y="${y + 22}" font-size="13" font-weight="700" fill="${p.oscuro ? '#5A5C61' : '#0B0B0C'}">${p.v}</text>`;
-      y += alto;
-    });
-    svg += `<text x="${izq}" y="${y + 16}" font-size="11.5" fill="#5A5C61">` +
-           `De tus ${e.realizadas} encuestas: ${e.aplicadas_por_el} la aplicaste tú` +
-           (e.autodiligenciadas ? ` y ${e.autodiligenciadas} las diligenció la empresa sola` : '') + `.</text></svg>`;
     return svg;
   }
 
@@ -534,6 +581,315 @@
     const ant = $('pag-ant'), sig = $('pag-sig');
     if (ant) ant.addEventListener('click', () => { pagina--; renderTabla(); });
     if (sig) sig.addEventListener('click', () => { pagina++; renderTabla(); });
+  }
+
+  // =================================================== gestión del último día hábil
+  const ETIQUETA_RES = {
+    sin_respuesta: 'Sin respuesta', respondio: 'Respondió', acepto: 'Aceptó',
+    rechazo: 'No participa', agendo: 'Agendó', diligencio: 'Diligenció', desconocido: 'Sin determinar'
+  };
+  const COLOR_RES = {
+    sin_respuesta: '#8A6D1F', respondio: '#395CE0', acepto: '#A16207',
+    rechazo: '#5A5C61', agendo: '#6B46C1', diligencio: '#0F5C2E', desconocido: '#88898C'
+  };
+  const ETIQUETA_CANAL = {
+    correo: 'Correo', llamada: 'Llamada', whatsapp: 'WhatsApp', linkedin: 'LinkedIn',
+    apollo: 'Apollo', reunion: 'Reunión', visita: 'Visita', otro: 'Sin clasificar'
+  };
+  const COLOR_CANAL = {
+    correo: '#395CE0', llamada: '#0E9384', whatsapp: '#147A3D', linkedin: '#2743B8',
+    apollo: '#6B46C1', reunion: '#A16207', visita: '#C0562F', otro: '#88898C'
+  };
+  const vacio = (txt) => `<p class="vacio">${esc(txt)}</p>`;
+
+  function renderGestion() {
+    const g = DATOS.gestion_dia_anterior || {};
+    $('t-gestion-titulo').textContent = `Gestión del ${g.dia || 'último día hábil'}`;
+    $('t-gestion-ayuda').textContent =
+      'Qué empresas se trabajaron ese día, por qué medio y en qué quedó cada una. Se toma siempre el ' +
+      'último día hábil: el lunes muestra el viernes, porque el fin de semana no cuenta como día de gestión.';
+    const cont = $('t-gestion');
+    const pp = g.por_persona || {};
+    const html = personasActivas().map((p) => {
+      const b = pp[p];
+      if (!b) return '';
+      const r = b.resumen;
+      const canales = Object.entries(r.por_canal || {})
+        .map(([c, n]) => `<span class="chip" style="background:${COLOR_CANAL[c] || '#88898C'}">${esc(ETIQUETA_CANAL[c] || c)}: ${n}</span>`).join(' ');
+      const filas = (b.empresas || []).map((f) => `<tr>
+        <td><div class="empresa">${esc(f.empresa)}</div><div class="nota">id ${esc(f.id)}</div></td>
+        <td><div class="chips">${f.canales.map((c) => `<span class="chip" style="background:${COLOR_CANAL[c] || '#88898C'}">${esc(ETIQUETA_CANAL[c] || c)}</span>`).join('')}</div></td>
+        <td>${esc(f.detalle || '—')}${f.n_gestiones > 1 ? `<div class="nota">${f.n_gestiones} gestiones ese día</div>` : ''}</td>
+        <td><span class="chip" style="background:${COLOR_RES[f.resultado] || '#88898C'}">${esc(ETIQUETA_RES[f.resultado] || f.resultado)}</span></td>
+        <td>${f.agendo ? '<span class="chip" style="background:#6B46C1">Quedó cita</span>' : (f.genero_seguimiento ? '<span class="chip" style="background:#395CE0">Seguimiento</span>' : '<span class="chip tenue">—</span>')}
+            <div class="nota">${esc(f.siguiente_paso || '')}</div></td></tr>`).join('');
+      // El origen "evidencia" significa que el detalle se dedujo de los nombres de archivo
+      // porque el modelo aún no ha revisado esas empresas con el esquema nuevo. Decirlo evita
+      // que alguien lea "Sin determinar" como "el encuestador no hizo nada".
+      const derivadas = (b.empresas || []).filter((f) => f.origen === 'evidencia').length;
+      return `<div class="gestion-persona">
+        <h3>${esc(NOMBRE_PERSONA[p] || p)}</h3>
+        <div class="cifras">
+          <span><b>${r.n_empresas}</b> empresas gestionadas</span>
+          <span><b>${r.n_gestiones}</b> gestiones</span>
+          <span><b>${r.con_respuesta}</b> con respuesta</span>
+          <span><b>${r.con_seguimiento}</b> dejaron seguimiento</span>
+          <span><b>${r.agendadas}</b> terminaron en cita</span>
+        </div>
+        <div class="chips" style="margin-bottom:10px">${canales}</div>
+        ${filas ? `<div class="tabla-wrap"><table class="compacta">
+            <thead><tr><th>Empresa</th><th>Medio</th><th>Qué se hizo</th><th>Resultado</th><th>¿Quedó algo?</th></tr></thead>
+            <tbody>${filas}</tbody></table></div>` : vacio('Sin gestiones documentadas ese día.')}
+        ${derivadas ? `<p class="ayuda" style="margin:10px 0 0">${derivadas} de estas empresas todavía no las ha
+           revisado el modelo con el detalle nuevo: el medio y el resultado salen del tipo de archivo que se subió,
+           así que pueden aparecer como "Sin determinar". Se afinan solos en los próximos días.</p>` : ''}
+      </div>`;
+    }).join('');
+    cont.innerHTML = html || vacio('Sin datos de gestión para ese día.');
+  }
+
+  // =================================================== agenda de la semana
+  const ETIQUETA_EST_ENT = {
+    pendiente: 'Pendiente', realizada: 'Realizada', reagendada: 'Reagendada',
+    cancelada: 'Cancelada', sin_confirmar: 'Sin confirmar'
+  };
+  const COLOR_EST_ENT = {
+    pendiente: '#395CE0', realizada: '#0F5C2E', reagendada: '#A16207',
+    cancelada: '#5A5C61', sin_confirmar: '#C0562F'
+  };
+
+  function renderAgenda() {
+    const a = DATOS.agenda_semana || {};
+    const ents = a.entrevistas || [];
+    $('t-agenda-titulo').textContent = `Entrevistas agendadas: ${ents.length} esta semana`;
+    $('t-agenda-ayuda').textContent =
+      `Compromisos del ${fmtDiaFecha(a.desde)} al ${fmtDiaFecha(a.hasta)}. Salen de las fechas que cada ` +
+      `encuestador escribe en su Excel y de las citas que el agente encuentra en la evidencia.`;
+    const hoyIso = iso(new Date());
+    const filas = ents.map((f) => `<tr${f.fecha === hoyIso ? ' style="background:var(--azul-fondo)"' : ''}>
+      <td><b>${esc(fmtFecha(f.fecha))}</b>${f.fecha === hoyIso ? '<div class="nota">hoy</div>' : ''}</td>
+      <td>${esc(fmtHora(f.hora))}</td>
+      <td><div class="empresa">${esc(f.empresa)}</div><div class="nota">id ${esc(f.id)}${f.modulos && f.modulos.length ? ' · módulos ' + esc(f.modulos.join(', ')) : ''}</div></td>
+      ${PERSONA === 'TODAS' ? `<td>${esc(NOMBRE_PERSONA[f.persona] || f.persona)}</td>` : ''}
+      <td>${f.modalidad ? esc(f.modalidad === 'virtual' ? 'Virtual' : 'Presencial') : '<span style="color:var(--gris)">por definir</span>'}
+          ${f.link ? `<div class="nota">tiene enlace de reunión</div>` : ''}</td>
+      <td><span class="chip" style="background:${COLOR_EST_ENT[f.estado] || '#88898C'}">${esc(ETIQUETA_EST_ENT[f.estado] || f.estado)}</span></td>
+    </tr>`).join('');
+    const sinFecha = (a.sin_fecha_legible || []).map((f) => `<li>
+      <b>${esc(f.empresa)}</b> <span style="color:var(--gris)">· id ${esc(f.id)} · módulo ${esc(f.modulo)}</span> — anotado como “${esc(f.texto)}”</li>`).join('');
+    $('t-agenda').innerHTML = (filas
+      ? `<div class="tabla-wrap"><table class="compacta"><thead><tr>
+           <th>Fecha</th><th>Hora</th><th>Empresa</th>${PERSONA === 'TODAS' ? '<th>Responsable</th>' : ''}
+           <th>Modalidad</th><th>Estado</th></tr></thead><tbody>${filas}</tbody></table></div>`
+      : vacio('No hay entrevistas con fecha dentro de esta semana.'))
+      + (sinFecha ? `<h3 style="font-size:14px;margin:20px 0 4px">Anotadas sin fecha legible</h3>
+          <p class="ayuda">El Excel tiene algo escrito en la fecha de entrevista, pero no se puede leer como fecha. Hay que confirmarlas.</p>
+          <ul style="margin:0;padding-left:18px;font-size:13.5px">${sinFecha}</ul>` : '');
+  }
+
+  // =================================================== diligenciamiento autónomo
+  const MODULOS = ['P', 'INV', 'INT', 'INN'];
+  const NOMBRE_MODULO = { P: 'Perfil', INV: 'Inversión', INT: 'Internacionalización', INN: 'Innovación' };
+  const ETIQUETA_EST_AUTO = {
+    en_curso: 'En curso', estancada: 'Sin avanzar', sin_iniciar: 'No ha abierto la encuesta', finalizada: 'Finalizada'
+  };
+  const COLOR_EST_AUTO = { en_curso: '#0E9384', estancada: '#C0562F', sin_iniciar: '#B3261E', finalizada: '#0F5C2E' };
+
+  function pildorasModulos(ok) {
+    const hechos = new Set(ok || []);
+    return `<div class="modulos">${MODULOS.map((m) =>
+      `<span class="${hechos.has(m) ? 'ok' : ''}" title="${esc(NOMBRE_MODULO[m])}${hechos.has(m) ? ': completo' : ': pendiente'}">${m}</span>`).join('')}</div>`;
+  }
+
+  function renderAuto() {
+    const a = DATOS.autodiligenciamiento || {};
+    const pp = a.por_persona || {};
+    const total = sumaPorPersona(a, (b) => (b.pendientes || []).length);
+    $('t-auto-titulo').textContent = `Diligenciamiento autónomo: ${total} en curso`;
+    $('t-auto-ayuda').textContent =
+      `Avance real de cada empresa según el Reporte 3i, para no tener que abrirlo a mano. ` +
+      `Una empresa se marca sin avanzar cuando lleva más de ${a.dias_estancado || 3} días hábiles sin tocar la encuesta.`;
+    $('t-auto').innerHTML = personasActivas().map((p) => {
+      const b = pp[p];
+      if (!b) return '';
+      const r = b.resumen;
+      const alertas = b.alertas || [];
+      const filas = (b.pendientes || []).map((f) => `<tr>
+        <td><div class="empresa">${esc(f.empresa)}</div><div class="nota">id ${esc(f.id)}${f.autodiligenciada ? '' : ' · marcada en el Excel'}</div></td>
+        <td>${f.fecha_envio ? (f.fecha_envio_aproximada ? '≈ ' : '') + esc(fmtFecha(f.fecha_envio)) : '—'}
+            ${f.fecha_envio_aproximada ? '<div class="nota" title="Se usa la fecha del último correo de la carpeta">aproximada</div>' : ''}</td>
+        <td class="avance"><div class="barra-mini"><i style="width:${f.porcentaje || 0}%"></i></div><div class="pct">${f.porcentaje || 0}%</div></td>
+        <td>${pildorasModulos(f.modulos_ok)}<div class="nota">${(f.modulos_pendientes || []).length
+              ? 'faltan ' + esc((f.modulos_pendientes || []).map((m) => NOMBRE_MODULO[m] || m).join(', ')) : 'sin pendientes'}</div></td>
+        <td>${f.ultima_actividad ? esc(fmtFecha(f.ultima_actividad)) : '—'}
+            ${f.dias_sin_avance != null ? `<div class="nota">hace ${f.dias_sin_avance} día(s) hábil(es)</div>` : ''}</td>
+        <td><span class="chip" style="background:${COLOR_EST_AUTO[f.estado] || '#88898C'}">${esc(ETIQUETA_EST_AUTO[f.estado] || f.estado)}</span></td>
+      </tr>`).join('');
+      const comp = (b.completadas || []).map((f) => `<li><b>${esc(f.empresa)}</b>
+        <span style="color:var(--gris)">· id ${esc(f.id)} · ${f.porcentaje || 0}%${f.ultima_actividad ? ' · ' + esc(fmtFecha(f.ultima_actividad)) : ''}</span></li>`).join('');
+      return `<div class="gestion-persona">
+        ${PERSONA === 'TODAS' ? `<h3>${esc(NOMBRE_PERSONA[p] || p)}</h3>` : ''}
+        <div class="cifras">
+          <span><b>${r.en_curso}</b> en curso</span>
+          <span><b>${r.estancadas}</b> sin avanzar</span>
+          <span><b>${r.sin_iniciar}</b> no han abierto la encuesta</span>
+          <span><b>${r.finalizadas}</b> finalizadas</span>
+        </div>
+        ${alertas.length ? `<div class="aviso-modo" style="margin:0 0 12px"><b>Necesitan un recordatorio:</b>
+           ${alertas.map((f) => esc(f.empresa) + ` (${f.dias_sin_avance} d)`).join(' · ')}</div>` : ''}
+        ${filas ? `<div class="tabla-wrap"><table class="compacta"><thead><tr>
+             <th>Empresa</th><th>Acceso enviado</th><th>Avance</th><th>Módulos</th><th>Última actividad</th><th>Estado</th>
+           </tr></thead><tbody>${filas}</tbody></table></div>`
+          : vacio('Ninguna empresa con diligenciamiento autónomo pendiente.')}
+        ${comp ? `<h3 style="font-size:14px;margin:18px 0 4px">Finalizadas (${(b.completadas || []).length})</h3>
+           <p class="ayuda">Ya terminaron la encuesta. Salen de pendientes y no requieren seguimiento.</p>
+           <ul style="margin:0;padding-left:18px;font-size:13.5px;columns:2">${comp}</ul>` : ''}
+      </div>`;
+    }).join('') || vacio('Sin datos de diligenciamiento autónomo.');
+  }
+
+  // =================================================== comparación entre encuestadores
+  function renderComparacion() {
+    const c = DATOS.comparativo || {};
+    const pp = c.por_persona || {};
+    const personas = personasDisponibles().filter((p) => pp[p]);
+    if (!personas.length) { $('t-comparacion').innerHTML = `<div class="tarjeta">${vacio('Sin datos comparativos.')}</div>`; return; }
+
+    // 1. Volumen: las cifras crudas, lado a lado.
+    const tarjetas = personas.map((p) => {
+      const x = pp[p];
+      const fila = (t, v, cls) => `<dt>${esc(t)}</dt><dd class="${cls || ''}">${v}</dd>`;
+      return `<div class="comp-tarjeta"><h3>${esc(NOMBRE_PERSONA[p] || p)}</h3><dl>
+        ${fila('Entrevistas realizadas', x.entrevistas_realizadas_total, 'destacado')}
+        ${fila('Realizadas esta semana', x.entrevistas_realizadas_semana)}
+        ${fila('Entrevistas agendadas', x.entrevistas_agendadas)}
+        ${fila('Agendadas por venir', x.agendadas_proximas)}
+        ${fila('Empresas contactadas', x.empresas_gestionadas)}
+        ${fila('Empresas que respondieron', x.empresas_con_respuesta)}
+        ${fila('Gestiones registradas', x.gestiones_realizadas)}
+      </dl></div>`;
+    }).join('');
+
+    // 2. Medios: en qué reparte cada quien su esfuerzo, y qué le funciona.
+    // Los medios salen de las DOS fuentes: el conteo de gestiones y las tasas de respuesta.
+    // Con solo `por_medio` la tabla se quedaba en "Correo", porque las gestiones derivadas de
+    // nombres de archivo no distinguen llamada de WhatsApp y esos medios solo aparecen en
+    // `tasa_por_medio` (que sí mira los canales del veredicto).
+    const todosMedios = [...new Set(personas.flatMap((p) =>
+      Object.keys(pp[p].por_medio || {}).concat(Object.keys(pp[p].tasa_por_medio || {}))))];
+    // "Sin clasificar" no es un medio de contacto: una tasa de respuesta sobre él no significa
+    // nada. Se muestra en el reparto (es esfuerzo real) pero no en la comparación de medios.
+    const mediosTasa = todosMedios.filter((m) => m !== 'otro');
+    const barras = personas.map((p) => {
+      const x = pp[p], tot = Object.values(x.por_medio || {}).reduce((a, n) => a + n, 0) || 1;
+      const segs = Object.entries(x.por_medio || {})
+        .map(([m, n]) => `<span style="flex:${n};background:${COLOR_CANAL[m] || '#88898C'}" title="${esc(ETIQUETA_CANAL[m] || m)}: ${n} (${Math.round(100 * n / tot)}%)"></span>`).join('');
+      return `<div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+          <b>${esc(NOMBRE_PERSONA[p] || p)}</b>
+          <span style="color:var(--gris-oscuro)">más usado: ${esc(ETIQUETA_CANAL[x.medio_mas_usado] || '—')}</span></div>
+        <div class="barra-medios">${segs}</div></div>`;
+    }).join('');
+    const leyenda = todosMedios.map((m) =>
+      `<span class="li"><i style="background:${COLOR_CANAL[m] || '#88898C'}"></i>${esc(ETIQUETA_CANAL[m] || m)}</span>`).join('');
+
+    // 3. Tasa de respuesta por medio: una fila por persona, una columna por medio.
+    const tasas = `<div class="tabla-wrap"><table class="compacta"><thead><tr><th>Encuestador</th>
+      ${mediosTasa.map((m) => `<th>${esc(ETIQUETA_CANAL[m] || m)}</th>`).join('')}<th>Mejor medio</th></tr></thead><tbody>
+      ${personas.map((p) => {
+        const x = pp[p];
+        return `<tr><td class="empresa">${esc(NOMBRE_PERSONA[p] || p)}</td>${mediosTasa.map((m) => {
+          const t = (x.tasa_por_medio || {})[m];
+          if (!t) return '<td style="color:var(--gris)">—</td>';
+          const mejor = x.medio_mas_efectivo === m;
+          return `<td${mejor ? ' style="background:#EAF5EE"' : ''}><b>${t.tasa}%</b>
+            <div class="nota">${t.respondieron} de ${t.empresas}</div></td>`;
+        }).join('')}<td><b>${esc(ETIQUETA_CANAL[x.medio_mas_efectivo] || '—')}</b></td></tr>`;
+      }).join('')}</tbody></table></div>`;
+
+    // 4. Conversión: del contacto a la cita, y de la cita a la encuesta hecha.
+    const conv = `<div class="tabla-wrap"><table class="compacta"><thead><tr>
+      <th>Encuestador</th><th>Contactadas</th><th>→ Agendadas</th><th>Conversión</th>
+      <th>→ Con encuesta</th><th>Conversión</th></tr></thead><tbody>
+      ${personas.map((p) => { const x = pp[p]; return `<tr>
+        <td class="empresa">${esc(NOMBRE_PERSONA[p] || p)}</td>
+        <td>${x.empresas_gestionadas}</td><td>${x.entrevistas_agendadas}</td>
+        <td><b>${x.conversion_contacto_agendada}%</b></td>
+        <td>${x.agendadas_con_encuesta}</td>
+        <td><b>${x.conversion_agendada_realizada}%</b></td></tr>`; }).join('')}
+      </tbody></table></div>`;
+
+    $('t-comparacion').innerHTML = `
+      <div class="tarjeta"><h2>Volumen de gestión</h2>
+        <p class="ayuda">Las cifras de cada encuestador, lado a lado. "Contactadas" son las empresas con al menos
+          una gestión documentada; "respondieron" son las que dieron alguna señal de vuelta.</p>
+        <div class="comp-grid">${tarjetas}</div></div>
+      <div class="tarjeta"><h2>Cómo contacta cada uno</h2>
+        <p class="ayuda">Reparto de las gestiones por medio. Muestra si alguien está apoyándose casi solo en el
+          correo mientras otro combina llamada y WhatsApp. "Sin clasificar" son relatorías que el modelo
+          todavía no ha leído con el detalle nuevo: es gestión real, pero aún no se sabe por qué medio fue.</p>
+        ${barras}<div class="leyenda" style="flex-direction:row;flex-wrap:wrap;gap:12px">${leyenda}</div></div>
+      <div class="tarjeta"><h2>Qué medio funciona mejor a cada uno</h2>
+        <p class="ayuda">De las empresas tocadas por cada medio, cuántas respondieron. Ojo: una empresa contactada
+          por correo <i>y</i> por llamada cuenta en las dos columnas, así que esto compara personas entre sí, no
+          demuestra que un medio cause la respuesta. En verde, el mejor medio de cada quien (mínimo 5 empresas).</p>
+        ${tasas}</div>
+      <div class="tarjeta"><h2>Del contacto a la encuesta</h2>
+        <p class="ayuda">Dónde se pierde cada embudo: quién agenda mucho pero concreta poco, y al revés.
+          "Con encuesta" son las empresas <i>agendadas</i> que además terminaron el cuestionario; el total de
+          encuestas de cada uno es mayor, porque muchas se logran sin cita previa o las diligencia la empresa sola.</p>
+        ${conv}</div>
+      <div class="tarjeta"><h2>Encuestas por encuestador</h2>
+        <p class="ayuda">Diligenciadas frente a las que siguen en curso.</p>
+        ${svgEquipo()}</div>`;
+  }
+
+  // =================================================== bitácora diaria
+  function renderBitacora() {
+    const b = DATOS.bitacora || { dias: [] };
+    const sel = $('f-fecha');
+    if (!b.dias.length) {
+      sel.innerHTML = ''; $('t-bitacora').innerHTML = vacio('Todavía no hay días con recomendaciones registradas.');
+      return;
+    }
+    if (sel.options.length !== b.dias.length) {
+      sel.innerHTML = b.dias.map((d) => `<option value="${esc(d.fecha)}">${esc(d.dia)}</option>`).join('');
+      sel.addEventListener('change', renderBitacora);
+    }
+    const dia = b.dias.find((d) => d.fecha === sel.value) || b.dias[0];
+    sel.value = dia.fecha;
+    $('t-bitacora').innerHTML = personasActivas().map((p) => {
+      const bloque = (dia.por_persona || {})[p];
+      if (!bloque) return '';
+      const r = bloque.resumen;
+      const cumpl = r.cumplimiento == null ? '—' : r.cumplimiento + '%';
+      const filas = (bloque.empresas || []).map((f) => `<tr class="${f.gestionada === false ? 'no-gestionada' : ''}">
+        <td><div class="empresa">${esc(f.empresa)}</div><div class="nota">id ${esc(f.id)}${f.motivo === 'arrastrada' ? ' · venía de un día anterior' : ''}</div></td>
+        <td>${f.gestionada == null ? '<span class="chip tenue">En curso</span>'
+             : f.gestionada ? '<span class="chip" style="background:#147A3D">Sí</span>'
+             : '<span class="chip" style="background:#B3261E">No</span>'}</td>
+        <td><div class="chips">${(f.medios || []).map((m) => `<span class="chip" style="background:${COLOR_CANAL[m] || '#88898C'}">${esc(ETIQUETA_CANAL[m] || m)}</span>`).join('') || '<span class="chip tenue">—</span>'}</div></td>
+        <td>${f.resultado ? `<span class="chip" style="background:${COLOR_RES[f.resultado] || '#88898C'}">${esc(ETIQUETA_RES[f.resultado] || f.resultado)}</span>` : '<span class="chip tenue">—</span>'}</td>
+        <td>${esc(f.observacion || '—')}</td>
+        <td>${esc(f.siguiente_accion || '—')}</td></tr>`).join('');
+      return `<div class="gestion-persona">
+        ${PERSONA === 'TODAS' ? `<h3>${esc(NOMBRE_PERSONA[p] || p)}</h3>` : ''}
+        <div class="bit-resumen">
+          <div><div class="v">${r.sugeridas}</div><div class="e">Sugeridas</div></div>
+          <div><div class="v si">${r.gestionadas}</div><div class="e">Gestionadas</div></div>
+          <div><div class="v no">${r.no_gestionadas}</div><div class="e">Sin gestionar</div></div>
+          ${r.sin_dato ? `<div><div class="v">${r.sin_dato}</div><div class="e">Sin dato</div></div>` : ''}
+          <div><div class="v">${cumpl}</div><div class="e">Cumplimiento</div></div>
+          <div><div class="v">${r.entrevistas_agendadas}</div><div class="e">Citas logradas</div></div>
+        </div>
+        ${r.dia_cerrado ? '' : `<p class="ayuda">${r.sin_dato} empresa(s) sin dato: el desenlace se confirma con la
+           corrida del siguiente día hábil, y ese día no quedó registro comparable (por ejemplo, porque hubo dos
+           corridas). El cumplimiento se calcula solo sobre las que sí se pueden verificar.</p>`}
+        <div class="tabla-wrap"><table class="compacta"><thead><tr>
+          <th>Empresa</th><th>¿Se gestionó?</th><th>Medio</th><th>Resultado</th><th>Observación</th><th>Siguiente acción</th>
+        </tr></thead><tbody>${filas}</tbody></table></div>
+      </div>`;
+    }).join('') || vacio('Sin recomendaciones registradas para esa fecha.');
   }
 
   document.addEventListener('DOMContentLoaded', inicio);
