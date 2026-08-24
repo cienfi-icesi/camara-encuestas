@@ -665,7 +665,8 @@
     $('t-agenda-titulo').textContent = `Entrevistas agendadas: ${ents.length} esta semana`;
     $('t-agenda-ayuda').textContent =
       `Compromisos del ${fmtDiaFecha(a.desde)} al ${fmtDiaFecha(a.hasta)}. Salen de las fechas que cada ` +
-      `encuestador escribe en su Excel y de las citas que el agente encuentra en la evidencia.`;
+      `encuestador escribe en su Excel y de las citas que el agente encuentra en las relatorías y correos. ` +
+      `Si una cita aparece aquí y no en tu Excel, vale la pena pasarla al Excel.`;
     const hoyIso = iso(new Date());
     const filas = ents.map((f) => `<tr${f.fecha === hoyIso ? ' style="background:var(--azul-fondo)"' : ''}>
       <td><b>${esc(fmtFecha(f.fecha))}</b>${f.fecha === hoyIso ? '<div class="nota">hoy</div>' : ''}</td>
@@ -673,7 +674,8 @@
       <td><div class="empresa">${esc(f.empresa)}</div><div class="nota">id ${esc(f.id)}${f.modulos && f.modulos.length ? ' · módulos ' + esc(f.modulos.join(', ')) : ''}</div></td>
       ${PERSONA === 'TODAS' ? `<td>${esc(NOMBRE_PERSONA[f.persona] || f.persona)}</td>` : ''}
       <td>${f.modalidad ? esc(f.modalidad === 'virtual' ? 'Virtual' : 'Presencial') : '<span style="color:var(--gris)">por definir</span>'}
-          ${f.link ? `<div class="nota">tiene enlace de reunión</div>` : ''}</td>
+          ${f.link ? `<div class="nota">tiene enlace de reunión</div>` : ''}
+          ${f.origen === 'evidencia' ? `<div class="nota" title="La cita la detectó el agente en la relatoría o el correo, no está en el Excel">según la relatoría</div>` : ''}</td>
       <td><span class="chip" style="background:${COLOR_EST_ENT[f.estado] || '#88898C'}">${esc(ETIQUETA_EST_ENT[f.estado] || f.estado)}</span></td>
     </tr>`).join('');
     const sinFecha = (a.sin_fecha_legible || []).map((f) => `<li>
@@ -780,6 +782,7 @@
         ${fila('Agendadas por venir', x.agendadas_proximas)}
         ${fila('Empresas contactadas', x.empresas_gestionadas)}
         ${fila('Empresas que respondieron', x.empresas_con_respuesta)}
+        ${fila('Solo correo, sin respuesta', x.empresas_solo_correo)}
         ${fila('Gestiones registradas', x.gestiones_realizadas)}
       </dl></div>`;
     }).join('');
@@ -835,8 +838,11 @@
 
     $('t-comparacion').innerHTML = `
       <div class="tarjeta"><h2>Volumen de gestión</h2>
-        <p class="ayuda">Las cifras de cada encuestador, lado a lado. "Contactadas" son las empresas con al menos
-          una gestión documentada; "respondieron" son las que dieron alguna señal de vuelta.</p>
+        <p class="ayuda">Las cifras de cada encuestador, lado a lado. <b>Contactadas</b> son las empresas con una
+          gestión real documentada: llamada, WhatsApp, LinkedIn, visita o una respuesta de la empresa. Siguiendo la
+          regla del proyecto, <i>no</i> cuentan las que solo tienen correos enviados sin respuesta — esas se muestran
+          aparte. <b>Respondieron</b> son las que dieron alguna señal de vuelta (aceptaron, rechazaron o contestaron
+          sin decidir); siempre son un subconjunto de las contactadas.</p>
         <div class="comp-grid">${tarjetas}</div></div>
       <div class="tarjeta"><h2>Cómo contacta cada uno</h2>
         <p class="ayuda">Reparto de las gestiones por medio. Muestra si alguien está apoyándose casi solo en el
