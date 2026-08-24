@@ -17,11 +17,11 @@
    "rol": "admin"
   }
  ],
- "fecha_corrida": "2026-08-23",
- "generado_en": "2026-08-23T23:20:14-05:00",
- "actualizado_en": "2026-08-23T23:20:14-05:00",
- "sello": "fd8686ccc654",
- "publicado_en": "2026-08-23T23:20:14-05:00",
+ "fecha_corrida": "2026-08-24",
+ "generado_en": "2026-08-24T08:19:11-05:00",
+ "actualizado_en": "2026-08-24T08:19:11-05:00",
+ "sello": "9ae7abe83f6d",
+ "publicado_en": "2026-08-24T08:19:12-05:00",
  "modo_modelo": 431,
  "modo_heuristico": 0,
  "modelo": "sonnet"
