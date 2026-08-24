@@ -641,9 +641,12 @@
         ${filas ? `<div class="tabla-wrap"><table class="compacta">
             <thead><tr><th>Empresa</th><th>Medio</th><th>Qué se hizo</th><th>Resultado</th><th>¿Quedó algo?</th></tr></thead>
             <tbody>${filas}</tbody></table></div>` : vacio('Sin gestiones documentadas ese día.')}
-        ${derivadas ? `<p class="ayuda" style="margin:10px 0 0">${derivadas} de estas empresas todavía no las ha
-           revisado el modelo con el detalle nuevo: el medio y el resultado salen del tipo de archivo que se subió,
-           así que pueden aparecer como "Sin determinar". Se afinan solos en los próximos días.</p>` : ''}
+        ${derivadas ? `<p class="ayuda" style="margin:10px 0 0"><b>Por qué aparece "Sin clasificar" o "Sin determinar":</b>
+           ${derivadas} de estas empresas se revisaron antes de que el agente empezara a registrar el detalle de cada
+           gestión. Para ellas solo se sabe lo que dice el <i>nombre</i> del archivo: un <code>.docx</code> es la
+           relatoría del día —hubo gestión, seguro— pero el nombre no dice si fue llamada, WhatsApp o visita, ni cómo
+           terminó. El agente las está reprocesando de a pocas por noche, empezando por las de evidencia más reciente;
+           la evidencia que se suba de ahora en adelante ya sale con el medio y el resultado completos.</p>` : ''}
       </div>`;
     }).join('');
     cont.innerHTML = html || vacio('Sin datos de gestión para ese día.');
