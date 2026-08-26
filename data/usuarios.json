@@ -17,12 +17,12 @@
    "rol": "admin"
   }
  ],
- "fecha_corrida": "2026-08-25",
- "generado_en": "2026-08-25T12:19:05-05:00",
- "actualizado_en": "2026-08-25T12:19:05-05:00",
- "sello": "f73f3d7b9af1",
- "publicado_en": "2026-08-25T12:30:22-05:00",
- "modo_modelo": 289,
- "modo_heuristico": 146,
+ "fecha_corrida": "2026-08-26",
+ "generado_en": "2026-08-26T10:30:25-05:00",
+ "actualizado_en": "2026-08-26T10:30:25-05:00",
+ "sello": "767c1153ad94",
+ "publicado_en": "2026-08-26T10:30:26-05:00",
+ "modo_modelo": 244,
+ "modo_heuristico": 182,
  "modelo": "sonnet"
 }

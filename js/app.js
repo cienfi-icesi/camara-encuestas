@@ -284,13 +284,36 @@
       (DATOS.sello ? ` · <span class="sello" title="Identificador de esta corrida. Debe coincidir con el del correo diario.">sello ${esc(DATOS.sello)}</span>` : '');
 
     const d = $('t-desfase');
-    const esperado = iso(ultimoHabil(new Date()));
+    const ahora = new Date();
+    const esperado = iso(ultimoHabil(ahora));
+    d.classList.add('oculto');
+    d.classList.remove('en-curso');
     if (DATOS.fecha_corrida && DATOS.fecha_corrida < esperado) {
-      d.innerHTML = `<b>Estos datos no están al día.</b> Son de la corrida del ${esc(fmtDiaFecha(DATOS.fecha_corrida))}, ` +
-        `y el último día hábil es ${esc(fmtDiaFecha(esperado))}. Lo que veas aquí puede no coincidir con tu correo ` +
-        `de hoy: avísale a la coordinación para que revise la publicación del tablero.`;
+      // Dos situaciones muy distintas que antes se avisaban igual, en rojo:
+      //
+      //  (a) La corrida de hoy todavia no ha terminado. Es lo normal a primera hora: el
+      //      2026-08-26 arranco 07:13 y tardo hasta pasado el mediodia porque OneDrive tenia
+      //      42 archivos nuevos por descargar. No hay nada roto y no hay nada que reportar;
+      //      decirle al encuestador que "avise a la coordinacion" vuelve el aviso ruido diario,
+      //      y el dia que falle de verdad ya nadie lo mira.
+      //  (b) Los datos llevan mas de un dia habil de atraso, o ya paso el mediodia y siguen
+      //      sin llegar. Ahi si ocurrio algo (el push fallo, la corrida no se ejecuto).
+      const ayer = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - 1);
+      const unDiaHabil = iso(ultimoHabil(ayer));
+      const recienteYTemprano = DATOS.fecha_corrida >= unDiaHabil && ahora.getHours() < 14;
+      if (recienteYTemprano) {
+        d.innerHTML = `<b>La corrida de hoy todavía no ha terminado.</b> Aquí ves los datos del ` +
+          `${esc(fmtDiaFecha(DATOS.fecha_corrida))}, el último día hábil cerrado. El tablero se actualiza solo ` +
+          `cuando la corrida termina de revisar la evidencia nueva; mientras tanto, guíate por el correo que ` +
+          `recibiste hoy. No hay nada que reportar.`;
+        d.classList.add('en-curso');
+      } else {
+        d.innerHTML = `<b>Estos datos no están al día.</b> Son de la corrida del ${esc(fmtDiaFecha(DATOS.fecha_corrida))}, ` +
+          `y el último día hábil es ${esc(fmtDiaFecha(esperado))}. Lo que veas aquí puede no coincidir con tu correo ` +
+          `de hoy: avísale a la coordinación para que revise la publicación del tablero.`;
+      }
       d.classList.remove('oculto');
-    } else d.classList.add('oculto');
+    }
   }
 
   // Hero: los dos números que importan. "Gestión efectiva" = avance real (la empresa

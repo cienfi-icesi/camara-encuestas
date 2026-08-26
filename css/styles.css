@@ -201,3 +201,8 @@ table.compacta .nota { font-size: 12px; color: var(--gris); margin-top: 2px; }
 .bit-resumen .e { font-size: 11.5px; color: var(--gris-oscuro); margin-top: 4px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
 .bit-resumen .v.si { color: var(--exito); } .bit-resumen .v.no { color: var(--peligro); }
 tr.no-gestionada td { background: #FEF6F5; }
+
+/* Corrida en curso: informativo, no alarma. El rojo se reserva para cuando de verdad
+   hay algo que reportar (el push fallo, la corrida no se ejecuto). */
+.aviso-desfase.en-curso { background: #FFF7E6; border-color: #F1D9A6; color: #6B4E00; }
+.aviso-desfase.en-curso b { color: #5A3E00; }
