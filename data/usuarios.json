@@ -18,11 +18,11 @@
   }
  ],
  "fecha_corrida": "2026-08-26",
- "generado_en": "2026-08-26T11:19:23-05:00",
- "actualizado_en": "2026-08-26T11:19:23-05:00",
- "sello": "5f7e9befd648",
- "publicado_en": "2026-08-26T11:21:02-05:00",
- "modo_modelo": 263,
- "modo_heuristico": 171,
+ "generado_en": "2026-08-27T00:37:24-05:00",
+ "actualizado_en": "2026-08-27T00:37:24-05:00",
+ "sello": "a8fe11af510a",
+ "publicado_en": "2026-08-27T00:37:26-05:00",
+ "modo_modelo": 300,
+ "modo_heuristico": 137,
  "modelo": "sonnet"
 }
