@@ -15,14 +15,18 @@
   {
    "usuario": "admin",
    "rol": "admin"
+  },
+  {
+   "usuario": "fernando",
+   "rol": "encuestador"
   }
  ],
  "fecha_corrida": "2026-08-28",
- "generado_en": "2026-08-28T06:14:10-05:00",
- "actualizado_en": "2026-08-28T06:14:10-05:00",
- "sello": "184228020715",
- "publicado_en": "2026-08-28T06:14:33-05:00",
- "modo_modelo": 438,
- "modo_heuristico": 0,
+ "generado_en": "2026-08-28T10:40:34-05:00",
+ "actualizado_en": "2026-08-28T10:40:34-05:00",
+ "sello": "e19919a4010d",
+ "publicado_en": "2026-08-28T10:40:35-05:00",
+ "modo_modelo": 419,
+ "modo_heuristico": 18,
  "modelo": "sonnet"
 }
