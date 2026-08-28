@@ -211,7 +211,7 @@
   // hay trabajo pendiente sin tener que entrar a mirar.
   function contadorSeccion(k) {
     if (k === 'gestion') return { n: sumaPorPersona(DATOS.gestion_dia_anterior, (b) => b.resumen.n_empresas) };
-    if (k === 'agenda') return { n: ((DATOS.agenda_semana || {}).entrevistas || []).length };
+    if (k === 'agenda') return { n: entrevistasVisibles().length };
     if (k === 'auto') {
       const alerta = sumaPorPersona(DATOS.autodiligenciamiento, (b) => (b.alertas || []).length);
       return { n: sumaPorPersona(DATOS.autodiligenciamiento,
@@ -229,6 +229,15 @@
   // "Todo el equipo", o solo la seleccionada.
   function personasActivas() {
     return PERSONA === 'TODAS' ? personasDisponibles() : [PERSONA];
+  }
+
+  // Entrevistas de la semana que corresponden a la persona seleccionada. Al admin le llegan
+  // TODAS (su paquete no viene filtrado por persona, a diferencia del de cada encuestador),
+  // así que sin esto el "Tablero de Ángela" mostraba citas de Diana y Leonardo como si
+  // fueran suyas — visto el 2026-08-28.
+  function entrevistasVisibles() {
+    const ents = (DATOS.agenda_semana || {}).entrevistas || [];
+    return PERSONA === 'TODAS' ? ents : ents.filter((f) => f.persona === PERSONA);
   }
 
   function renderSecciones() {
@@ -687,7 +696,7 @@
 
   function renderAgenda() {
     const a = DATOS.agenda_semana || {};
-    const ents = a.entrevistas || [];
+    const ents = entrevistasVisibles();
     $('t-agenda-titulo').textContent = `Entrevistas agendadas: ${ents.length} esta semana`;
     $('t-agenda-ayuda').textContent =
       `Compromisos del ${fmtDiaFecha(a.desde)} al ${fmtDiaFecha(a.hasta)}. Salen de las fechas que cada ` +
@@ -698,7 +707,7 @@
       <td><b>${esc(fmtFecha(f.fecha))}</b>${f.fecha === hoyIso ? '<div class="nota">hoy</div>' : ''}</td>
       <td>${esc(fmtHora(f.hora))}</td>
       <td><div class="empresa">${esc(f.empresa)}</div><div class="nota">id ${esc(f.id)}${f.modulos && f.modulos.length ? ' · módulos ' + esc(f.modulos.join(', ')) : ''}</div></td>
-      ${PERSONA === 'TODAS' ? `<td>${esc(NOMBRE_PERSONA[f.persona] || f.persona)}</td>` : ''}
+      <td>${esc(NOMBRE_PERSONA[f.persona] || f.persona)}</td>
       <td>${f.modalidad ? esc(f.modalidad === 'virtual' ? 'Virtual' : 'Presencial') : '<span style="color:var(--gris)">por definir</span>'}
           ${f.link ? `<div class="nota">tiene enlace de reunión</div>` : ''}
           ${f.origen === 'evidencia' ? `<div class="nota" title="La cita la detectó el agente en la relatoría o el correo, no está en el Excel">según la relatoría</div>` : ''}</td>
@@ -708,7 +717,7 @@
       <b>${esc(f.empresa)}</b> <span style="color:var(--gris)">· id ${esc(f.id)} · módulo ${esc(f.modulo)}</span> — anotado como “${esc(f.texto)}”</li>`).join('');
     $('t-agenda').innerHTML = (filas
       ? `<div class="tabla-wrap"><table class="compacta"><thead><tr>
-           <th>Fecha</th><th>Hora</th><th>Empresa</th>${PERSONA === 'TODAS' ? '<th>Responsable</th>' : ''}
+           <th>Fecha</th><th>Hora</th><th>Empresa</th><th>Encuestador</th>
            <th>Modalidad</th><th>Estado</th></tr></thead><tbody>${filas}</tbody></table></div>`
       : vacio('No hay entrevistas con fecha dentro de esta semana.'))
       + (sinFecha ? `<h3 style="font-size:14px;margin:20px 0 4px">Anotadas sin fecha legible</h3>
