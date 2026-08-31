@@ -803,15 +803,14 @@
   // =================================================== comparación entre encuestadores
   // Semanas con actividad registrada, de la más reciente a la más antigua.
   //
-  // Se descartan las FUTURAS: una entrevista agendada para dentro de un mes crea su propia
-  // semana, y como vista de cumplimiento saldría vacía y elegida por defecto (pasó con la
-  // semana del 28-sep). La semana en curso se incluye siempre, aunque todavía no tenga
-  // gestiones, porque es la que uno quiere ver el lunes por la mañana.
+  // Se incluyen las FUTURAS: son las citas ya agendadas para adelante y hay que poder verlas
+  // (pedido de Eduard, 2026-08-31). Lo que no se hace es abrir el tablero en una de ellas —
+  // una semana futura no tiene gestión, así que como vista de cumplimiento sale vacía; por eso
+  // el valor por defecto es la semana en curso, no la más reciente del listado.
   function semanasDisponibles(pp, personas, semanaActual) {
     const ks = new Set(personas.flatMap((p) => Object.keys(pp[p].por_semana || {})));
     if (semanaActual) ks.add(semanaActual);
-    const tope = semanaActual || '9999-99-99';
-    return [...ks].filter((k) => k <= tope).sort().reverse();
+    return [...ks].sort().reverse();
   }
 
   function fmtSemana(lunes) {
@@ -907,14 +906,18 @@
     const semanas = semanasDisponibles(pp, personas, semanaActual);
     if (SEMANA === null || !semanas.includes(SEMANA)) SEMANA = semanaActual || semanas[0] || null;
     const metaContactos = metas.contactos_efectivos_dia * metas.dias_habiles_semana;
-    const botonesSemana = semanas.slice(0, 10).map((k) =>
-      `<button type="button" class="tab${k === SEMANA ? ' activa' : ''}" data-semana="${esc(k)}">${esc(fmtSemana(k))}</button>`).join('');
+    const futura = (k) => semanaActual && k > semanaActual;
+    const botonesSemana = semanas.slice(0, 12).map((k) =>
+      `<button type="button" class="tab${k === SEMANA ? ' activa' : ''}" data-semana="${esc(k)}"
+         title="${futura(k) ? 'Semana futura: solo muestra las citas ya agendadas' : 'Gestión de esa semana'}"
+       >${esc(fmtSemana(k))}${futura(k) ? ' ·<span style="opacity:.7">próxima</span>' : ''}</button>`).join('');
     const filaSemana = (p) => {
       const b = (pp[p].por_semana || {})[SEMANA] || { gestiones: 0, empresas: 0, efectivas: 0, agendadas: 0, realizadas: 0 };
       return `<tr><td class="empresa">${esc(NOMBRE_PERSONA[p] || p)}</td>
         <td>${b.empresas}</td>
         <td>${chipMeta(b.efectivas, metaContactos)}</td>
         <td>${chipMeta(b.agendadas, metas.agendadas_semana)}</td>
+        <td>${pp[p].entrevistas_agendadas}<div class="nota">${pp[p].agendadas_proximas} por venir</div></td>
         <td>${b.realizadas}</td>
         <td>${b.gestiones}</td></tr>`;
     };
@@ -925,11 +928,14 @@
         <b>${metas.agendadas_semana} entrevistas agendadas por semana</b>.
         Un contacto es <i>efectivo</i> cuando la empresa dio alguna señal de vuelta: aceptó, rechazó,
         agendó, diligenció o respondió sin decidir. Los correos enviados sin respuesta no cuentan.
-        Solo entran las gestiones con fecha conocida.</p>
+        Solo entran las gestiones con fecha conocida. <b>Agendadas esta semana</b> son las citas cuya
+        fecha cae en la semana elegida; <b>Agendadas en total</b> cuenta todas las citas registradas,
+        incluidas las de semanas próximas, para que ninguna quede escondida por el filtro.</p>
       <div class="tabs" id="t-comp-semanas" style="margin-bottom:14px">${botonesSemana || ''}</div>
       ${SEMANA ? `<div class="tabla-wrap"><table class="compacta"><thead><tr>
           <th>Encuestador</th><th>Empresas gestionadas</th><th>Contactos efectivos</th>
-          <th>Agendadas</th><th>Encuestas hechas</th><th>Gestiones</th></tr></thead>
+          <th>Agendadas esta semana</th><th>Agendadas en total</th>
+          <th>Encuestas hechas</th><th>Gestiones</th></tr></thead>
         <tbody>${personas.map(filaSemana).join('')}</tbody></table></div>`
         : vacio('Todavía no hay gestiones con fecha para agrupar por semana.')}
     </div>`;
