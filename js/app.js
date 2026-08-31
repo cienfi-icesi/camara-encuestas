@@ -109,6 +109,7 @@
   let SECCION = 'resumen';   // sección visible
   let FESTIVOS = new Set();  // festivos colombianos, para saber cuál fue el último día hábil
   let PERSONA = null;        // persona activa (o 'TODAS' para admin)
+  let SEMANA = null;         // lunes ISO de la semana elegida en Comparación (null = acumulado)
   const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const esHabil = (d) => d.getDay() !== 0 && d.getDay() !== 6 && !FESTIVOS.has(iso(d));
   // Último día hábil a fecha de HOY (no de cuando se generó el archivo): es lo que permite
@@ -800,6 +801,34 @@
   }
 
   // =================================================== comparación entre encuestadores
+  // Semanas con actividad registrada, de la más reciente a la más antigua.
+  //
+  // Se descartan las FUTURAS: una entrevista agendada para dentro de un mes crea su propia
+  // semana, y como vista de cumplimiento saldría vacía y elegida por defecto (pasó con la
+  // semana del 28-sep). La semana en curso se incluye siempre, aunque todavía no tenga
+  // gestiones, porque es la que uno quiere ver el lunes por la mañana.
+  function semanasDisponibles(pp, personas, semanaActual) {
+    const ks = new Set(personas.flatMap((p) => Object.keys(pp[p].por_semana || {})));
+    if (semanaActual) ks.add(semanaActual);
+    const tope = semanaActual || '9999-99-99';
+    return [...ks].filter((k) => k <= tope).sort().reverse();
+  }
+
+  function fmtSemana(lunes) {
+    const d = new Date(lunes + 'T12:00:00');
+    const v = new Date(d); v.setDate(v.getDate() + 4);           // lunes → viernes
+    const mes = (x) => x.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '');
+    return `${d.getDate()} ${mes(d)} – ${v.getDate()} ${mes(v)}`;
+  }
+
+  // Cumplimiento contra la meta: devuelve el chip con el logro y lo esperado.
+  function chipMeta(logrado, meta) {
+    const ok = logrado >= meta;
+    return `<b style="color:${ok ? 'var(--verde, #0F5C2E)' : '#C0562F'}">${logrado}</b>` +
+           `<span style="color:var(--gris-oscuro)"> / ${meta}</span>` +
+           (ok ? ' <span title="meta cumplida">✓</span>' : '');
+  }
+
   function renderComparacion() {
     const c = DATOS.comparativo || {};
     const pp = c.por_persona || {};
@@ -871,7 +900,41 @@
         <td><b>${x.conversion_agendada_realizada}%</b></td></tr>`; }).join('')}
       </tbody></table></div>`;
 
-    $('t-comparacion').innerHTML = `
+    // 0. Metas y corte por semana. Las cifras de "Volumen" son acumuladas desde el inicio del
+    // proyecto y no dejan ver el ritmo; esto muestra la semana elegida contra lo esperado.
+    const metas = c.metas || { contactos_efectivos_dia: 5, agendadas_semana: 3, dias_habiles_semana: 5 };
+    const semanaActual = (c.semana || [])[0] || null;   // lunes de la semana hábil en curso
+    const semanas = semanasDisponibles(pp, personas, semanaActual);
+    if (SEMANA === null || !semanas.includes(SEMANA)) SEMANA = semanaActual || semanas[0] || null;
+    const metaContactos = metas.contactos_efectivos_dia * metas.dias_habiles_semana;
+    const botonesSemana = semanas.slice(0, 10).map((k) =>
+      `<button type="button" class="tab${k === SEMANA ? ' activa' : ''}" data-semana="${esc(k)}">${esc(fmtSemana(k))}</button>`).join('');
+    const filaSemana = (p) => {
+      const b = (pp[p].por_semana || {})[SEMANA] || { gestiones: 0, empresas: 0, efectivas: 0, agendadas: 0, realizadas: 0 };
+      return `<tr><td class="empresa">${esc(NOMBRE_PERSONA[p] || p)}</td>
+        <td>${b.empresas}</td>
+        <td>${chipMeta(b.efectivas, metaContactos)}</td>
+        <td>${chipMeta(b.agendadas, metas.agendadas_semana)}</td>
+        <td>${b.realizadas}</td>
+        <td>${b.gestiones}</td></tr>`;
+    };
+    const bloqueSemana = `<div class="tarjeta">
+      <h2>Cumplimiento por semana</h2>
+      <p class="ayuda">Meta acordada: <b>${metas.contactos_efectivos_dia} contactos efectivos al día</b>
+        (${metaContactos} en una semana de ${metas.dias_habiles_semana} días hábiles) y
+        <b>${metas.agendadas_semana} entrevistas agendadas por semana</b>.
+        Un contacto es <i>efectivo</i> cuando la empresa dio alguna señal de vuelta: aceptó, rechazó,
+        agendó, diligenció o respondió sin decidir. Los correos enviados sin respuesta no cuentan.
+        Solo entran las gestiones con fecha conocida.</p>
+      <div class="tabs" id="t-comp-semanas" style="margin-bottom:14px">${botonesSemana || ''}</div>
+      ${SEMANA ? `<div class="tabla-wrap"><table class="compacta"><thead><tr>
+          <th>Encuestador</th><th>Empresas gestionadas</th><th>Contactos efectivos</th>
+          <th>Agendadas</th><th>Encuestas hechas</th><th>Gestiones</th></tr></thead>
+        <tbody>${personas.map(filaSemana).join('')}</tbody></table></div>`
+        : vacio('Todavía no hay gestiones con fecha para agrupar por semana.')}
+    </div>`;
+
+    $('t-comparacion').innerHTML = bloqueSemana + `
       <div class="tarjeta"><h2>Volumen de gestión</h2>
         <p class="ayuda">Las cifras de cada encuestador, lado a lado. <b>Contactadas</b> son las empresas con una
           gestión real documentada: llamada, WhatsApp, LinkedIn, visita o una respuesta de la empresa. Siguiendo la
@@ -897,6 +960,12 @@
       <div class="tarjeta"><h2>Encuestas por encuestador</h2>
         <p class="ayuda">Diligenciadas frente a las que siguen en curso.</p>
         ${svgEquipo()}</div>`;
+
+    // Cambiar de semana solo redibuja esta sección; no toca la persona ni la pestaña activas.
+    const navSem = $('t-comp-semanas');
+    if (navSem) navSem.querySelectorAll('button[data-semana]').forEach((b) => {
+      b.addEventListener('click', () => { SEMANA = b.dataset.semana; renderComparacion(); });
+    });
   }
 
   // =================================================== bitácora diaria
