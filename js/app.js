@@ -109,7 +109,7 @@
   let SECCION = 'resumen';   // sección visible
   let FESTIVOS = new Set();  // festivos colombianos, para saber cuál fue el último día hábil
   let PERSONA = null;        // persona activa (o 'TODAS' para admin)
-  let SEMANA = null;         // lunes ISO de la semana elegida en Comparación (null = acumulado)
+  let SEMANA = null;         // corte de Comparación: lunes ISO, 'todo' = acumulado, null = sin resolver
   const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const esHabil = (d) => d.getDay() !== 0 && d.getDay() !== 6 && !FESTIVOS.has(iso(d));
   // Último día hábil a fecha de HOY (no de cuando se generó el archivo): es lo que permite
@@ -834,11 +834,43 @@
     const personas = personasDisponibles().filter((p) => pp[p]);
     if (!personas.length) { $('t-comparacion').innerHTML = `<div class="tarjeta">${vacio('Sin datos comparativos.')}</div>`; return; }
 
-    // 1. Volumen: las cifras crudas, lado a lado.
+    // 0. El corte por semana se resuelve ANTES que nada: manda sobre las tarjetas de volumen y
+    //    sobre el reparto por medio, no solo sobre la tabla de cumplimiento (pedido de Eduard,
+    //    2026-08-31). 'todo' devuelve la vista acumulada desde el inicio del proyecto.
+    const metas = c.metas || { contactos_efectivos_dia: 5, agendadas_semana: 3, dias_habiles_semana: 5 };
+    const semanaActual = (c.semana || [])[0] || null;   // lunes de la semana hábil en curso
+    const semanas = semanasDisponibles(pp, personas, semanaActual);
+    if (SEMANA === null || (SEMANA !== 'todo' && !semanas.includes(SEMANA))) {
+      SEMANA = semanaActual || semanas[0] || 'todo';
+    }
+    const acumulado = SEMANA === 'todo';
+    const metaContactos = metas.contactos_efectivos_dia * metas.dias_habiles_semana;
+    const futura = (k) => semanaActual && k > semanaActual;
+    const VACIA = { gestiones: 0, empresas: 0, contactadas: 0, efectivas: 0, solo_correo: 0,
+                    agendadas: 0, realizadas: 0, por_medio: {} };
+    const bloqueDe = (p) => (pp[p].por_semana || {})[SEMANA] || VACIA;
+    // Rótulo que se cuelga de cada título para que nunca se lea una cifra sin saber de qué periodo es.
+    const corte = acumulado ? 'todo el proyecto' : fmtSemana(SEMANA);
+    // Una semana recién empezada sale en ceros. Sin decirlo, cuatro tarjetas en cero parecen un
+    // tablero roto; con esto se lee como lo que es: la semana todavía no tiene gestión cargada.
+    const vacioCorte = !acumulado && personas.every((p) => !bloqueDe(p).gestiones && !bloqueDe(p).agendadas);
+    const avisoCorte = vacioCorte
+      ? `<p class="ayuda" style="color:#C0562F"><b>Sin gestión registrada en ${esc(corte)}.</b>
+         ${futura(SEMANA) ? 'Es una semana futura: aquí solo aparecerían las citas ya agendadas para esos días.'
+           : 'La gestión de la semana anterior no se mueve a esta; elige otra semana en el filtro o mira el acumulado.'}</p>`
+      : '';
+    const selector = `<label style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600">Semana
+      <select id="f-semana" style="font-weight:400;max-width:320px">
+        <option value="todo"${acumulado ? ' selected' : ''}>Todo el proyecto (acumulado)</option>
+        ${semanas.map((k) => `<option value="${esc(k)}"${k === SEMANA ? ' selected' : ''}>${esc(fmtSemana(k))}${
+          k === semanaActual ? ' · esta semana' : (futura(k) ? ' · próxima' : '')}</option>`).join('')}
+      </select></label>`;
+
+    // 1. Volumen: las cifras crudas, lado a lado. Acumuladas o de la semana elegida.
     const tarjetas = personas.map((p) => {
-      const x = pp[p];
+      const x = pp[p], b = bloqueDe(p);
       const fila = (t, v, cls) => `<dt>${esc(t)}</dt><dd class="${cls || ''}">${v}</dd>`;
-      return `<div class="comp-tarjeta"><h3>${esc(NOMBRE_PERSONA[p] || p)}</h3><dl>
+      const cuerpo = acumulado ? `
         ${fila('Entrevistas realizadas', x.entrevistas_realizadas_total, 'destacado')}
         ${fila('Realizadas esta semana', x.entrevistas_realizadas_semana)}
         ${fila('Entrevistas agendadas', x.entrevistas_agendadas)}
@@ -846,34 +878,43 @@
         ${fila('Empresas contactadas', x.empresas_gestionadas)}
         ${fila('Empresas que respondieron', x.empresas_con_respuesta)}
         ${fila('Solo correo, sin respuesta', x.empresas_solo_correo)}
-        ${fila('Gestiones registradas', x.gestiones_realizadas)}
-      </dl></div>`;
+        ${fila('Gestiones registradas', x.gestiones_realizadas)}` : `
+        ${fila('Encuestas hechas', b.realizadas, 'destacado')}
+        ${fila('Citas con fecha en la semana', b.agendadas)}
+        ${fila('Empresas contactadas', b.contactadas)}
+        ${fila('Empresas que respondieron', b.efectivas)}
+        ${fila('Solo correo, sin respuesta', b.solo_correo)}
+        ${fila('Gestiones registradas', b.gestiones)}`;
+      return `<div class="comp-tarjeta"><h3>${esc(NOMBRE_PERSONA[p] || p)}</h3><dl>${cuerpo}</dl></div>`;
     }).join('');
 
-    // 2. Medios: en qué reparte cada quien su esfuerzo, y qué le funciona.
-    // Los medios salen de las DOS fuentes: el conteo de gestiones y las tasas de respuesta.
-    // Con solo `por_medio` la tabla se quedaba en "Correo", porque las gestiones derivadas de
-    // nombres de archivo no distinguen llamada de WhatsApp y esos medios solo aparecen en
-    // `tasa_por_medio` (que sí mira los canales del veredicto).
+    // 2. Medios: en qué reparte cada quien su esfuerzo. También sigue el corte de la semana.
+    const medioDe = (p) => (acumulado ? pp[p].por_medio : bloqueDe(p).por_medio) || {};
+    const mediosBarra = [...new Set(personas.flatMap((p) => Object.keys(medioDe(p))))];
+    const barras = personas.map((p) => {
+      const m = medioDe(p), tot = Object.values(m).reduce((a, n) => a + n, 0);
+      const top = Object.entries(m).sort((a, b) => b[1] - a[1])[0];
+      const segs = Object.entries(m)
+        .map(([k, n]) => `<span style="flex:${n};background:${COLOR_CANAL[k] || '#88898C'}" title="${esc(ETIQUETA_CANAL[k] || k)}: ${n} (${Math.round(100 * n / tot)}%)"></span>`).join('');
+      return `<div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+          <b>${esc(NOMBRE_PERSONA[p] || p)}</b>
+          <span style="color:var(--gris-oscuro)">${tot ? `más usado: ${esc(ETIQUETA_CANAL[top[0]] || top[0])}` : 'sin gestiones en este corte'}</span></div>
+        <div class="barra-medios">${segs}</div></div>`;
+    }).join('');
+    const leyenda = mediosBarra.map((m) =>
+      `<span class="li"><i style="background:${COLOR_CANAL[m] || '#88898C'}"></i>${esc(ETIQUETA_CANAL[m] || m)}</span>`).join('');
+
+    // 3. Tasa de respuesta por medio: una fila por persona, una columna por medio.
+    // Esta y las dos siguientes son SIEMPRE acumuladas: son razones sobre el universo de
+    // empresas de cada quien (¿de las que toqué por llamada, cuántas respondieron?), y una
+    // empresa tocada en marzo puede responder en agosto. Partirlas por semana daría un número
+    // que parece una tasa y no lo es.
     const todosMedios = [...new Set(personas.flatMap((p) =>
       Object.keys(pp[p].por_medio || {}).concat(Object.keys(pp[p].tasa_por_medio || {}))))];
     // "Sin clasificar" no es un medio de contacto: una tasa de respuesta sobre él no significa
     // nada. Se muestra en el reparto (es esfuerzo real) pero no en la comparación de medios.
     const mediosTasa = todosMedios.filter((m) => m !== 'otro');
-    const barras = personas.map((p) => {
-      const x = pp[p], tot = Object.values(x.por_medio || {}).reduce((a, n) => a + n, 0) || 1;
-      const segs = Object.entries(x.por_medio || {})
-        .map(([m, n]) => `<span style="flex:${n};background:${COLOR_CANAL[m] || '#88898C'}" title="${esc(ETIQUETA_CANAL[m] || m)}: ${n} (${Math.round(100 * n / tot)}%)"></span>`).join('');
-      return `<div style="margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
-          <b>${esc(NOMBRE_PERSONA[p] || p)}</b>
-          <span style="color:var(--gris-oscuro)">más usado: ${esc(ETIQUETA_CANAL[x.medio_mas_usado] || '—')}</span></div>
-        <div class="barra-medios">${segs}</div></div>`;
-    }).join('');
-    const leyenda = todosMedios.map((m) =>
-      `<span class="li"><i style="background:${COLOR_CANAL[m] || '#88898C'}"></i>${esc(ETIQUETA_CANAL[m] || m)}</span>`).join('');
-
-    // 3. Tasa de respuesta por medio: una fila por persona, una columna por medio.
     const tasas = `<div class="tabla-wrap"><table class="compacta"><thead><tr><th>Encuestador</th>
       ${mediosTasa.map((m) => `<th>${esc(ETIQUETA_CANAL[m] || m)}</th>`).join('')}<th>Mejor medio</th></tr></thead><tbody>
       ${personas.map((p) => {
@@ -899,20 +940,10 @@
         <td><b>${x.conversion_agendada_realizada}%</b></td></tr>`; }).join('')}
       </tbody></table></div>`;
 
-    // 0. Metas y corte por semana. Las cifras de "Volumen" son acumuladas desde el inicio del
-    // proyecto y no dejan ver el ritmo; esto muestra la semana elegida contra lo esperado.
-    const metas = c.metas || { contactos_efectivos_dia: 5, agendadas_semana: 3, dias_habiles_semana: 5 };
-    const semanaActual = (c.semana || [])[0] || null;   // lunes de la semana hábil en curso
-    const semanas = semanasDisponibles(pp, personas, semanaActual);
-    if (SEMANA === null || !semanas.includes(SEMANA)) SEMANA = semanaActual || semanas[0] || null;
-    const metaContactos = metas.contactos_efectivos_dia * metas.dias_habiles_semana;
-    const futura = (k) => semanaActual && k > semanaActual;
-    const botonesSemana = semanas.slice(0, 12).map((k) =>
-      `<button type="button" class="tab${k === SEMANA ? ' activa' : ''}" data-semana="${esc(k)}"
-         title="${futura(k) ? 'Semana futura: solo muestra las citas ya agendadas' : 'Gestión de esa semana'}"
-       >${esc(fmtSemana(k))}${futura(k) ? ' ·<span style="opacity:.7">próxima</span>' : ''}</button>`).join('');
+    // 5. Cumplimiento contra la meta. Solo tiene sentido con una semana elegida: la meta es
+    // semanal, así que sumar todo el proyecto contra "5 al día" no compara nada.
     const filaSemana = (p) => {
-      const b = (pp[p].por_semana || {})[SEMANA] || { gestiones: 0, empresas: 0, efectivas: 0, agendadas: 0, realizadas: 0 };
+      const b = bloqueDe(p);
       return `<tr><td class="empresa">${esc(NOMBRE_PERSONA[p] || p)}</td>
         <td>${b.empresas}</td>
         <td>${chipMeta(b.efectivas, metaContactos)}</td>
@@ -923,7 +954,9 @@
     };
     const bloqueSemana = `<div class="tarjeta">
       <h2>Cumplimiento por semana</h2>
-      <p class="ayuda">Meta acordada: <b>${metas.contactos_efectivos_dia} contactos efectivos al día</b>
+      <p class="ayuda">El filtro de arriba manda sobre <b>todo lo que se puede partir por semana</b>:
+        esta tabla, el volumen de gestión y el reparto por medio. Meta acordada:
+        <b>${metas.contactos_efectivos_dia} contactos efectivos al día</b>
         (${metaContactos} en una semana de ${metas.dias_habiles_semana} días hábiles) y
         <b>${metas.agendadas_semana} entrevistas agendadas por semana</b>.
         Un contacto es <i>efectivo</i> cuando la empresa dio alguna señal de vuelta: aceptó, rechazó,
@@ -931,47 +964,49 @@
         Solo entran las gestiones con fecha conocida. <b>Agendadas esta semana</b> son las citas cuya
         fecha cae en la semana elegida; <b>Agendadas en total</b> cuenta todas las citas registradas,
         incluidas las de semanas próximas, para que ninguna quede escondida por el filtro.</p>
-      <div class="tabs" id="t-comp-semanas" style="margin-bottom:14px">${botonesSemana || ''}</div>
-      ${SEMANA ? `<div class="tabla-wrap"><table class="compacta"><thead><tr>
+      <div style="margin:0 0 14px">${selector}</div>
+      ${acumulado ? vacio('La meta es semanal. Elige una semana en el filtro para ver el cumplimiento.')
+        : `<div class="tabla-wrap"><table class="compacta"><thead><tr>
           <th>Encuestador</th><th>Empresas gestionadas</th><th>Contactos efectivos</th>
           <th>Agendadas esta semana</th><th>Agendadas en total</th>
           <th>Encuestas hechas</th><th>Gestiones</th></tr></thead>
-        <tbody>${personas.map(filaSemana).join('')}</tbody></table></div>`
-        : vacio('Todavía no hay gestiones con fecha para agrupar por semana.')}
+        <tbody>${personas.map(filaSemana).join('')}</tbody></table></div>`}
     </div>`;
 
     $('t-comparacion').innerHTML = bloqueSemana + `
-      <div class="tarjeta"><h2>Volumen de gestión</h2>
-        <p class="ayuda">Las cifras de cada encuestador, lado a lado. <b>Contactadas</b> son las empresas con una
-          gestión real documentada: llamada, WhatsApp, LinkedIn, visita o una respuesta de la empresa. Siguiendo la
-          regla del proyecto, <i>no</i> cuentan las que solo tienen correos enviados sin respuesta — esas se muestran
-          aparte. <b>Respondieron</b> son las que dieron alguna señal de vuelta (aceptaron, rechazaron o contestaron
-          sin decidir); siempre son un subconjunto de las contactadas.</p>
-        <div class="comp-grid">${tarjetas}</div></div>
-      <div class="tarjeta"><h2>Cómo contacta cada uno</h2>
+      <div class="tarjeta"><h2>Volumen de gestión <span class="nota" style="font-weight:400">· ${esc(corte)}</span></h2>
+        <p class="ayuda">Las cifras de cada encuestador, lado a lado, para el corte elegido arriba.
+          <b>Contactadas</b> son las empresas con una gestión real documentada: llamada, WhatsApp, LinkedIn,
+          visita o una respuesta de la empresa. Siguiendo la regla del proyecto, <i>no</i> cuentan las que solo
+          tienen correos enviados sin respuesta — esas se muestran aparte. <b>Respondieron</b> son las que dieron
+          alguna señal de vuelta (aceptaron, rechazaron o contestaron sin decidir); siempre son un subconjunto de
+          las contactadas.${acumulado ? '' : ' Con una semana elegida, una misma empresa puede ser "solo correo" en una semana y "contactada" en otra: se juzga la gestión de esa semana, no su historia completa.'}</p>
+        ${avisoCorte}<div class="comp-grid">${tarjetas}</div></div>
+      <div class="tarjeta"><h2>Cómo contacta cada uno <span class="nota" style="font-weight:400">· ${esc(corte)}</span></h2>
         <p class="ayuda">Reparto de las gestiones por medio. Muestra si alguien está apoyándose casi solo en el
           correo mientras otro combina llamada y WhatsApp. "Sin clasificar" son relatorías que el modelo
           todavía no ha leído con el detalle nuevo: es gestión real, pero aún no se sabe por qué medio fue.</p>
         ${barras}<div class="leyenda" style="flex-direction:row;flex-wrap:wrap;gap:12px">${leyenda}</div></div>
-      <div class="tarjeta"><h2>Qué medio funciona mejor a cada uno</h2>
-        <p class="ayuda">De las empresas tocadas por cada medio, cuántas respondieron. Ojo: una empresa contactada
-          por correo <i>y</i> por llamada cuenta en las dos columnas, así que esto compara personas entre sí, no
-          demuestra que un medio cause la respuesta. En verde, el mejor medio de cada quien (mínimo 5 empresas).</p>
+      <div class="tarjeta"><h2>Qué medio funciona mejor a cada uno <span class="nota" style="font-weight:400">· acumulado</span></h2>
+        <p class="ayuda">De las empresas tocadas por cada medio, cuántas respondieron. <b>No sigue el filtro de
+          semana</b>: es una razón sobre el universo completo de empresas de cada quien, y una empresa tocada en
+          marzo puede responder en agosto. Ojo: una empresa contactada por correo <i>y</i> por llamada cuenta en
+          las dos columnas, así que esto compara personas entre sí, no demuestra que un medio cause la respuesta.
+          En verde, el mejor medio de cada quien (mínimo 5 empresas).</p>
         ${tasas}</div>
-      <div class="tarjeta"><h2>Del contacto a la encuesta</h2>
+      <div class="tarjeta"><h2>Del contacto a la encuesta <span class="nota" style="font-weight:400">· acumulado</span></h2>
         <p class="ayuda">Dónde se pierde cada embudo: quién agenda mucho pero concreta poco, y al revés.
-          "Con encuesta" son las empresas <i>agendadas</i> que además terminaron el cuestionario; el total de
-          encuestas de cada uno es mayor, porque muchas se logran sin cita previa o las diligencia la empresa sola.</p>
+          Tampoco sigue el filtro de semana, por lo mismo: el contacto y la encuesta casi nunca caen en la misma
+          semana. "Con encuesta" son las empresas <i>agendadas</i> que además terminaron el cuestionario; el total
+          de encuestas de cada uno es mayor, porque muchas se logran sin cita previa o las diligencia la empresa sola.</p>
         ${conv}</div>
-      <div class="tarjeta"><h2>Encuestas por encuestador</h2>
+      <div class="tarjeta"><h2>Encuestas por encuestador <span class="nota" style="font-weight:400">· acumulado</span></h2>
         <p class="ayuda">Diligenciadas frente a las que siguen en curso.</p>
         ${svgEquipo()}</div>`;
 
     // Cambiar de semana solo redibuja esta sección; no toca la persona ni la pestaña activas.
-    const navSem = $('t-comp-semanas');
-    if (navSem) navSem.querySelectorAll('button[data-semana]').forEach((b) => {
-      b.addEventListener('click', () => { SEMANA = b.dataset.semana; renderComparacion(); });
-    });
+    const sel = $('f-semana');
+    if (sel) sel.addEventListener('change', () => { SEMANA = sel.value; renderComparacion(); });
   }
 
   // =================================================== bitácora diaria
