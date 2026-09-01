@@ -1014,7 +1014,7 @@
     const b = DATOS.bitacora || { dias: [] };
     const sel = $('f-fecha');
     if (!b.dias.length) {
-      sel.innerHTML = ''; $('t-bitacora').innerHTML = vacio('Todavía no hay días con recomendaciones registradas.');
+      sel.innerHTML = ''; $('t-bitacora').innerHTML = vacio('Todavía no hay días con gestión registrada.');
       return;
     }
     if (sel.options.length !== b.dias.length) {
@@ -1027,34 +1027,44 @@
       const bloque = (dia.por_persona || {})[p];
       if (!bloque) return '';
       const r = bloque.resumen;
-      const cumpl = r.cumplimiento == null ? '—' : r.cumplimiento + '%';
-      const filas = (bloque.empresas || []).map((f) => `<tr class="${f.gestionada === false ? 'no-gestionada' : ''}">
-        <td><div class="empresa">${esc(f.empresa)}</div><div class="nota">id ${esc(f.id)}${f.motivo === 'arrastrada' ? ' · venía de un día anterior' : ''}</div></td>
-        <td>${f.gestionada == null ? '<span class="chip tenue">En curso</span>'
-             : f.gestionada ? '<span class="chip" style="background:#147A3D">Sí</span>'
-             : '<span class="chip" style="background:#B3261E">No</span>'}</td>
-        <td><div class="chips">${(f.medios || []).map((m) => `<span class="chip" style="background:${COLOR_CANAL[m] || '#88898C'}">${esc(ETIQUETA_CANAL[m] || m)}</span>`).join('') || '<span class="chip tenue">—</span>'}</div></td>
+      // Una empresa por fila: las que esa persona INTENTÓ contactar ese día, respondieran o no.
+      const filas = (bloque.empresas || []).map((f) => `<tr class="${f.efectivo ? '' : 'no-gestionada'}">
+        <td><div class="empresa">${esc(f.empresa)}</div>
+            <div class="nota">id ${esc(f.id)}${f.de_la_lista ? '' : ' · <b>por su cuenta</b>'}</div></td>
+        <td>${f.efectivo ? '<span class="chip" style="background:#147A3D">Respondió</span>'
+                         : '<span class="chip" style="background:#88898C">Sin respuesta</span>'}</td>
+        <td><div class="chips">${(f.medios || []).map((m) => `<span class="chip" style="background:${COLOR_CANAL[m] || '#88898C'}">${esc(ETIQUETA_CANAL[m] || m)}</span>`).join('') || '<span class="chip tenue">—</span>'}${
+            f.n_gestiones > 1 ? `<span class="chip tenue">${f.n_gestiones} intentos</span>` : ''}</div></td>
         <td>${f.resultado ? `<span class="chip" style="background:${COLOR_RES[f.resultado] || '#88898C'}">${esc(ETIQUETA_RES[f.resultado] || f.resultado)}</span>` : '<span class="chip tenue">—</span>'}</td>
         <td>${esc(f.observacion || '—')}</td>
         <td>${esc(f.siguiente_accion || '—')}</td></tr>`).join('');
+      // Las propuestas que ese día no se tocaron. Ya no es una nota de incumplimiento: es la
+      // lista de lo que quedó pendiente y el agente sigue recomendando.
+      const pend = (bloque.sugeridas_sin_tocar || []).map((x) =>
+        `<li>${esc(x.empresa)} <span class="nota">(id ${esc(x.id)})</span></li>`).join('');
       return `<div class="gestion-persona">
         ${PERSONA === 'TODAS' ? `<h3>${esc(NOMBRE_PERSONA[p] || p)}</h3>` : ''}
         <div class="bit-resumen">
-          <div><div class="v">${r.sugeridas}</div><div class="e">Sugeridas</div></div>
-          <div><div class="v si">${r.gestionadas}</div><div class="e">Gestionadas</div></div>
-          <div><div class="v no">${r.no_gestionadas}</div><div class="e">Sin gestionar</div></div>
-          ${r.sin_dato ? `<div><div class="v">${r.sin_dato}</div><div class="e">Sin dato</div></div>` : ''}
-          <div><div class="v">${cumpl}</div><div class="e">Cumplimiento</div></div>
+          <div><div class="v">${r.contactadas}</div><div class="e">Empresas intentadas</div></div>
+          <div><div class="v si">${r.efectivas}</div><div class="e">Respondieron</div></div>
+          <div><div class="v no">${r.sin_respuesta}</div><div class="e">Sin respuesta</div></div>
+          <div><div class="v">${r.gestiones}</div><div class="e">Intentos</div></div>
           <div><div class="v">${r.entrevistas_agendadas}</div><div class="e">Citas logradas</div></div>
         </div>
-        ${r.dia_cerrado ? '' : `<p class="ayuda">${r.sin_dato} empresa(s) sin dato: el desenlace se confirma con la
-           corrida del siguiente día hábil, y ese día no quedó registro comparable (por ejemplo, porque hubo dos
-           corridas). El cumplimiento se calcula solo sobre las que sí se pueden verificar.</p>`}
-        <div class="tabla-wrap"><table class="compacta"><thead><tr>
-          <th>Empresa</th><th>¿Se gestionó?</th><th>Medio</th><th>Resultado</th><th>Observación</th><th>Siguiente acción</th>
-        </tr></thead><tbody>${filas}</tbody></table></div>
+        <p class="ayuda">Las empresas a las que esta persona le intentó llegar ese día, hayan respondido o no.
+          Salen de la evidencia fechada ese día, no de la lista sugerida: por eso aparecen también las que
+          buscó por su cuenta (${r.por_su_cuenta} de ${r.contactadas}; ${r.de_la_lista} venían de la lista del agente).
+          Una empresa con varios intentos el mismo día es <b>una sola fila</b>, con el mejor resultado del día.</p>
+        ${filas ? `<div class="tabla-wrap"><table class="compacta"><thead><tr>
+          <th>Empresa</th><th>¿Respondió?</th><th>Medio</th><th>Resultado</th><th>Observación</th><th>Siguiente acción</th>
+        </tr></thead><tbody>${filas}</tbody></table></div>`
+        : vacio('No quedó evidencia de gestión ese día.')}
+        ${pend ? `<h3 style="font-size:14px;margin:18px 0 4px">De la lista sugerida, quedaron sin tocar (${bloque.sugeridas_sin_tocar.length} de ${r.sugeridas})</h3>
+          <p class="ayuda">No es un reproche: puede que ese día hubiera algo más urgente. Se listan porque
+            siguen pendientes y el agente las vuelve a proponer.</p>
+          <ul style="margin:0;padding-left:18px;font-size:13.5px;columns:2">${pend}</ul>` : ''}
       </div>`;
-    }).join('') || vacio('Sin recomendaciones registradas para esa fecha.');
+    }).join('') || vacio('Sin gestión registrada para esa fecha.');
   }
 
   document.addEventListener('DOMContentLoaded', inicio);
