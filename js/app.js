@@ -158,6 +158,29 @@
     CATEGORIAS.forEach((k) => { const o = document.createElement('option'); o.value = k; o.textContent = ETIQUETA_CAT[k]; sel.appendChild(o); });
   }
 
+  // GitHub Pages cachea index.html ~10 minutos. Los ?v= de css/js llevan el hash del archivo,
+  // pero si el navegador sirve un index.html viejo pide el app.js viejo, y ese código leyendo
+  // datos nuevos pinta "undefined" en la cara del usuario (visto el 2026-09-01, tras cambiar la
+  // bitácora). Los datos dicen con qué esquema se generaron: si es más nuevo que el que este
+  // código entiende, el que sobra es el código, y la única salida es traerlo de nuevo.
+  const ESQUEMA_SOPORTADO = 2;
+  function codigoViejo(d) {
+    const v = (d && d.version_esquema) || 0;
+    if (v <= ESQUEMA_SOPORTADO) return false;
+    // Una sola recarga por versión: si aun así no se actualiza, es mejor mostrar el tablero
+    // imperfecto que dejar al usuario en un ciclo de recargas.
+    let yaIntentado = false;
+    try { yaIntentado = sessionStorage.getItem('recarga-esquema') === String(v); } catch (e) { /* modo privado */ }
+    if (yaIntentado) return false;
+    try { sessionStorage.setItem('recarga-esquema', String(v)); } catch (e) { /* ignorar */ }
+    const err = $('login-error');
+    if (err) err.textContent = 'El tablero se actualizó. Recargando…';
+    // Una URL distinta obliga a pedir el index.html de nuevo; location.reload() puede
+    // reutilizar el que está en caché, que es justo el problema.
+    location.replace(location.pathname + '?r=' + Date.now());
+    return true;
+  }
+
   async function entrar(ev) {
     ev.preventDefault();
     const btn = $('btn-entrar'); const err = $('login-error');
@@ -165,6 +188,7 @@
     try {
       DATOS = await Auth.abrir($('usuario').value, $('clave').value);
       $('clave').value = '';
+      if (codigoViejo(DATOS)) return;          // se recarga sola; no vale la pena pintar nada
       mostrarTablero();
     } catch (e) {
       err.textContent = e.message === 'credenciales' ? 'Usuario o contraseña incorrectos.' : ('No se pudo abrir el tablero: ' + e.message);
@@ -1026,7 +1050,10 @@
     $('t-bitacora').innerHTML = personasActivas().map((p) => {
       const bloque = (dia.por_persona || {})[p];
       if (!bloque) return '';
-      const r = bloque.resumen;
+      // Cinturón y tirantes: si algún día los datos y este código se desfasan otra vez, se ve
+      // un cero, no la palabra "undefined".
+      const r0 = bloque.resumen || {};
+      const r = new Proxy(r0, { get: (o, k) => (o[k] === undefined || o[k] === null ? 0 : o[k]) });
       // Una empresa por fila: las que esa persona INTENTÓ contactar ese día, respondieran o no.
       const filas = (bloque.empresas || []).map((f) => `<tr class="${f.efectivo ? '' : 'no-gestionada'}">
         <td><div class="empresa">${esc(f.empresa)}</div>
