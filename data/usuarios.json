@@ -24,8 +24,8 @@
  "fecha_corrida": "2026-09-03",
  "generado_en": "2026-09-03T08:21:19-05:00",
  "actualizado_en": "2026-09-03T08:21:19-05:00",
- "sello": "202340910716",
- "publicado_en": "2026-09-03T08:21:30-05:00",
+ "sello": "c1b2271f8456",
+ "publicado_en": "2026-09-03T08:30:29-05:00",
  "modo_modelo": 508,
  "modo_heuristico": 0,
  "modelo": "ollama:gemma4"
