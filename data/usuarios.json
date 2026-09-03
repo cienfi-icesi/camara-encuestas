@@ -22,11 +22,11 @@
   }
  ],
  "fecha_corrida": "2026-09-03",
- "generado_en": "2026-09-03T16:29:45-05:00",
- "actualizado_en": "2026-09-03T16:29:45-05:00",
- "sello": "18936d8ff66a",
- "publicado_en": "2026-09-03T16:35:12-05:00",
+ "generado_en": "2026-09-03T17:36:40-05:00",
+ "actualizado_en": "2026-09-03T17:36:40-05:00",
+ "sello": "93b876c41540",
+ "publicado_en": "2026-09-03T17:36:47-05:00",
  "modo_modelo": 516,
  "modo_heuristico": 0,
- "modelo": "ollama:gemma4"
+ "modelo": "sonnet"
 }
