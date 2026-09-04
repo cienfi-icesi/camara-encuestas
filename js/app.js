@@ -136,13 +136,6 @@
 
   // ------------------------------------------------------------------ login
   async function inicio() {
-    try {
-      const idx = await Auth.cargarIndice();
-      if (idx && idx.fecha_corrida) {
-        const modo = textoModo(idx.modelo, idx.modo_modelo, idx.modo_heuristico);
-        $('login-nota').textContent = `Datos de la corrida del ${fmtFecha(idx.fecha_corrida)} (${modo}). Se descargan cifrados y solo se abren en tu navegador.`;
-      }
-    } catch (e) { /* el índice es opcional para el login */ }
     $('form-login').addEventListener('submit', entrar);
     $('btn-salir').addEventListener('click', salir);
     $('f-buscar').addEventListener('input', (e) => { filtro.texto = e.target.value.trim().toLowerCase(); pagina = 1; renderTabla(); });
