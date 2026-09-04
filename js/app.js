@@ -633,10 +633,6 @@
         modulos_pendientes: (enc.modulos_pendientes || []).join(', '),
         encuesta_completa: enc.completa == null ? '' : (enc.completa ? 'sí' : 'no'),
         encuesta_porcentaje: enc.porcentaje != null ? enc.porcentaje : '',
-        siguiente_paso: v.siguiente_paso || '',
-        resumen: v.resumen || '',
-        discrepancia: v.discrepancia || '',
-        coincide_con_declarado: v.coincide_con_declarado == null ? '' : (v.coincide_con_declarado ? 'sí' : 'no'),
       };
     });
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -644,7 +640,6 @@
     ws['!cols'] = [
       {wch:6},{wch:34},{wch:12},{wch:22},{wch:20},{wch:24},{wch:8},
       {wch:16},{wch:10},{wch:12},{wch:8},{wch:16},{wch:18},{wch:8},{wch:10},
-      {wch:60},{wch:60},{wch:60},{wch:8},
     ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Empresas');
