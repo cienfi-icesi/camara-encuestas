@@ -29,10 +29,11 @@
   // Los positivos se subdividen (pedido Eduard, 2026-08-19): "aceptó" no es igual a
   // "agendó" ni a "está diligenciando". El sub-estado sale de `verificado.sub_estado_efectivo`
   // (poblado por el modelo, ver prompt corroborar_sistema.md).
-  const CATEGORIAS = ['encuesta_diligenciada', 'diligenciando', 'agendada', 'aceptada',
+  const CATEGORIAS = ['encuesta_diligenciada', 'diligenciando', 'formulario_enviado', 'agendada', 'aceptada',
                       'respondio_sin_decision', 'no_participa', 'intento', 'sin_gestion'];
   const ETIQUETA_CAT = {
     encuesta_diligenciada: 'Encuesta diligenciada', diligenciando: 'Diligenciando encuesta',
+    formulario_enviado: 'Formulario enviado',
     agendada: 'Entrevista agendada', aceptada: 'Aceptó, sin agenda',
     respondio_sin_decision: 'Respondió, sin decisión', no_participa: 'No desea participar',
     intento: 'Intentos (correo o llamada)', sin_gestion: 'Sin gestión'
@@ -44,6 +45,7 @@
   const COLOR_CAT = {
     encuesta_diligenciada: '#0F5C2E',   // verde bosque (mayor logro)
     diligenciando: '#0E9384',            // teal
+    formulario_enviado: '#2E7D8F',       // teal apagado (aún no aparece en reporte_3i)
     agendada: '#6B46C1',                 // morado
     aceptada: '#A16207',                 // mostaza / oro oscuro
     respondio_sin_decision: '#395CE0',   // azul (existente)
@@ -58,6 +60,7 @@
       if (e.cerrada_por_encuesta) return 'encuesta_diligenciada';
       const sub = v.sub_estado_efectivo;
       if (sub === 'diligenciando') return 'diligenciando';
+      if (sub === 'formulario_enviado') return 'formulario_enviado';
       if (sub === 'agendado') return 'agendada';
       if (sub === 'aceptado') return 'aceptada';
       // Fallback (veredicto viejo sin sub_estado): agrupar como "agendada" — que era el
@@ -379,6 +382,7 @@
           const items = [
             { k: 'encuesta_diligenciada', txt: 'ya contestaron la encuesta' },
             { k: 'diligenciando', txt: 'diligenciando la encuesta ahora' },
+            { k: 'formulario_enviado', txt: 'con formulario enviado, aún sin iniciar' },
             { k: 'agendada', txt: 'con entrevista agendada' },
             { k: 'aceptada', txt: 'aceptaron, falta coordinar fecha' },
             { k: 'respondio_sin_decision', txt: 'respondieron, sin decidir aún', extra: '· seguimiento a 3–4 días' },
@@ -401,7 +405,7 @@
   // "Gestión efectiva" = respondieron con algo (aceptaron, agendaron, dijeron sí, respondieron
   // sin decidir, incluso rechazaron explícitamente). "Sin avance" = intentos sin respuesta o
   // carpeta vacía. Se separan visualmente con un espacio en la barra + dos leyendas apiladas.
-  const CAT_EFECTIVA = ['encuesta_diligenciada', 'diligenciando', 'agendada', 'aceptada',
+  const CAT_EFECTIVA = ['encuesta_diligenciada', 'diligenciando', 'formulario_enviado', 'agendada', 'aceptada',
                         'respondio_sin_decision', 'no_participa'];
   const CAT_SIN_AVANCE = ['intento', 'sin_gestion'];
 
