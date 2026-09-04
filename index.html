@@ -89,7 +89,10 @@
       </div>
 
       <div class="tarjeta">
-        <h2>Todas las empresas</h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+          <h2 style="margin:0">Todas las empresas</h2>
+          <button class="boton secundario chico" id="btn-descargar-xlsx" type="button">Descargar Excel</button>
+        </div>
         <p class="ayuda">Haz clic en una fila para ver el detalle (resumen, siguiente paso, discrepancias).</p>
         <div class="filtros">
           <div><label for="f-buscar">Buscar</label><input id="f-buscar" placeholder="empresa o id"></div>
@@ -163,7 +166,8 @@
   </div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="js/auth.js?v=10c282df92"></script>
-<script src="js/app.js?v=10368dbf70"></script>
+<script src="js/app.js?v=31dfb5ff6f"></script>
 </body>
 </html>

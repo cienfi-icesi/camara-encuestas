@@ -141,6 +141,7 @@
   async function inicio() {
     $('form-login').addEventListener('submit', entrar);
     $('btn-salir').addEventListener('click', salir);
+    $('btn-descargar-xlsx').addEventListener('click', descargarXlsx);
     $('f-buscar').addEventListener('input', (e) => { filtro.texto = e.target.value.trim().toLowerCase(); pagina = 1; renderTabla(); });
     $('f-estado').addEventListener('change', (e) => { filtro.estado = e.target.value; pagina = 1; renderTabla(); });
     $('f-declarado').addEventListener('change', (e) => { filtro.declarado = e.target.value; pagina = 1; renderTabla(); });
@@ -590,6 +591,49 @@
     }[orden.col] || ((e) => e.id);
     f = f.slice().sort((a, b) => { const x = clave(a), y = clave(b); return (x < y ? -1 : x > y ? 1 : 0) * (orden.asc ? 1 : -1); });
     return f;
+  }
+
+  function descargarXlsx() {
+    if (typeof XLSX === 'undefined') { alert('El módulo de Excel aún no está listo, intenta en un segundo.'); return; }
+    if (!DATOS) { alert('Ingresa primero para descargar el Excel.'); return; }
+    const rows = (DATOS.empresas || []).map((e) => {
+      const v = e.verificado || {};
+      const d = e.declarado || {};
+      const enc = e.encuesta || {};
+      const ult = v.ultima_gestion || d.ultima_gestion || null;
+      return {
+        id: e.id,
+        empresa: e.empresa || '',
+        encuestador: e.encuestador || '',
+        estado_verificado: v.estado_verificado || '',
+        sub_estado: v.sub_estado_efectivo || (e.cerrada_por_encuesta ? 'encuesta_diligenciada' : ''),
+        categoria: ETIQUETA_CAT[categoria(e)] || '',
+        cerrada: e.cerrada ? 'sí' : 'no',
+        declarado_contacto: d.contacto || '',
+        declarado_intentos: d.intentos != null ? d.intentos : '',
+        ultima_gestion: ult || '',
+        n_archivos: (e.archivos || []).length,
+        modulos_ok: (enc.modulos_ok || []).join(', '),
+        modulos_pendientes: (enc.modulos_pendientes || []).join(', '),
+        encuesta_completa: enc.completa == null ? '' : (enc.completa ? 'sí' : 'no'),
+        encuesta_porcentaje: enc.porcentaje != null ? enc.porcentaje : '',
+        siguiente_paso: v.siguiente_paso || '',
+        resumen: v.resumen || '',
+        discrepancia: v.discrepancia || '',
+        coincide_con_declarado: v.coincide_con_declarado == null ? '' : (v.coincide_con_declarado ? 'sí' : 'no'),
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    // Anchos legibles
+    ws['!cols'] = [
+      {wch:6},{wch:34},{wch:12},{wch:22},{wch:20},{wch:24},{wch:8},
+      {wch:16},{wch:10},{wch:12},{wch:8},{wch:16},{wch:18},{wch:8},{wch:10},
+      {wch:60},{wch:60},{wch:60},{wch:8},
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Empresas');
+    const fecha = (DATOS.corte || DATOS.fecha_corrida || '').slice(0,10) || 'export';
+    XLSX.writeFile(wb, `seguimiento_3i_${fecha}.xlsx`);
   }
 
   function renderTabla() {
