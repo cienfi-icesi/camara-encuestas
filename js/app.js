@@ -142,6 +142,7 @@
     $('form-login').addEventListener('submit', entrar);
     $('btn-salir').addEventListener('click', salir);
     $('btn-descargar-xlsx').addEventListener('click', descargarXlsx);
+    $('btn-descargar-reporte3i').addEventListener('click', descargarReporte3i);
     $('f-buscar').addEventListener('input', (e) => { filtro.texto = e.target.value.trim().toLowerCase(); pagina = 1; renderTabla(); });
     $('f-estado').addEventListener('change', (e) => { filtro.estado = e.target.value; pagina = 1; renderTabla(); });
     $('f-declarado').addEventListener('change', (e) => { filtro.declarado = e.target.value; pagina = 1; renderTabla(); });
@@ -212,6 +213,7 @@
     $('vista-tablero').classList.remove('oculto');
     $('sesion').classList.remove('oculto');
     $('sesion-nombre').textContent = DATOS.rol === 'admin' ? 'Coordinación (admin)' : (DATOS.nombre || DATOS.usuario || '');
+    $('t-descargas').classList.toggle('oculto', !(DATOS.rol === 'admin' && DATOS.reporte_3i_xlsx_b64));
     FESTIVOS = new Set(DATOS.festivos || []);
     const personas = personasDisponibles();
     PERSONA = DATOS.rol === 'admin' ? 'TODAS' : personas[0];
@@ -591,6 +593,20 @@
     }[orden.col] || ((e) => e.id);
     f = f.slice().sort((a, b) => { const x = clave(a), y = clave(b); return (x < y ? -1 : x > y ? 1 : 0) * (orden.asc ? 1 : -1); });
     return f;
+  }
+
+  function descargarReporte3i() {
+    if (!DATOS || !DATOS.reporte_3i_xlsx_b64) { alert('El reporte_3i no está disponible en este paquete (solo admin).'); return; }
+    const bin = atob(DATOS.reporte_3i_xlsx_b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const fecha = (DATOS.corte || DATOS.fecha_corrida || '').slice(0,10) || 'export';
+    a.href = url; a.download = `reporte_3i_${fecha}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function descargarXlsx() {
