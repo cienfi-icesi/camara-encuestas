@@ -367,7 +367,6 @@
            <div class="rot">Encuestas diligenciadas</div>
            <div class="big">${dilig}</div>
            <ul class="desglose" style="margin-top:12px">
-             <li><b>${e.completas}</b> con los cuatro módulos completos${e.parciales_justificadas ? ` · <b>${e.parciales_justificadas}</b> parcial(es) con justificación` : ''}</li>
              <li><span style="color:var(--gris-oscuro)">${e.realizadas} realizadas · ${e.en_curso} aún en curso${e.autodiligenciadas ? ' · ' + e.autodiligenciadas + ' autodiligenciadas' : ''}</span></li>
            </ul>
          </div>`
