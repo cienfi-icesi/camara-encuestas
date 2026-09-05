@@ -21,12 +21,12 @@
    "rol": "encuestador"
   }
  ],
- "fecha_corrida": "2026-09-04",
- "generado_en": "2026-09-04T18:55:33-05:00",
- "actualizado_en": "2026-09-04T18:55:33-05:00",
- "sello": "7dc5c2fa94da",
- "publicado_en": "2026-09-04T18:55:36-05:00",
- "modo_modelo": 486,
- "modo_heuristico": 45,
+ "fecha_corrida": "2026-09-05",
+ "generado_en": "2026-09-05T11:22:53-05:00",
+ "actualizado_en": "2026-09-05T11:22:53-05:00",
+ "sello": "c8537bfe937b",
+ "publicado_en": "2026-09-05T11:23:31-05:00",
+ "modo_modelo": 528,
+ "modo_heuristico": 3,
  "modelo": "sonnet"
 }
