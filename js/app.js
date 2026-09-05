@@ -288,13 +288,7 @@
     const quien = PERSONA === 'TODAS' ? 'Todo el equipo' : (NOMBRE_PERSONA[PERSONA] || PERSONA);
     $('t-titulo').textContent = `Tablero de ${quien}`;
     renderCabecera();
-    const aviso = $('t-aviso');
-    if (r.modo_heuristico > 0) {
-      aviso.textContent = r.modo_modelo > 0
-        ? `${r.modo_heuristico} de estas empresas todavía no las revisó el modelo (quedaron en heurística: reglas sobre cabeceras de correo y palabras clave). Sus estados son una aproximación.`
-        : 'Esta corrida se hizo en modo heurístico (reglas sobre cabeceras de correo y palabras clave, sin el modelo). Los estados son una aproximación; la corrida con claude-sonnet-5 los afina.';
-      aviso.classList.remove('oculto');
-    } else aviso.classList.add('oculto');
+    $('t-aviso').classList.add('oculto');
 
     renderSecciones();
     SECCIONES.forEach((sec) => $('sec-' + sec.k).classList.toggle('oculto', sec.k !== SECCION));
