@@ -364,15 +364,14 @@
     // Dos números distintos, sin mezclar: "diligenciadas" (la meta real) y, aparte, cuántas
     // de esas tienen los 4 módulos completos. Ver encuestas.resumen_persona.
     const dilig = e && (e.diligenciadas != null ? e.diligenciadas : e.completas);
-    // El número grande es el TOTAL terminado e incluye las autodiligenciadas; el desglose lo
-    // dice explícitamente para que no se lean como una categoría aparte. "En curso" va abajo,
-    // separado, porque es lo que todavía no está terminado.
+    // El número grande es el TOTAL terminado: suma las que aplicó el encuestador y las que la
+    // empresa diligenció sola. No se desglosan las autodiligenciadas porque el desglose
+    // confundía — una autodiligenciada a medias no está en el total, está en "en curso".
     const colEnc = e && e.disponible
       ? `<div class="col enc">
            <div class="rot">Encuestas diligenciadas (total)</div>
            <div class="big">${dilig}</div>
            <ul class="desglose" style="margin-top:12px">
-             ${e.autodiligenciadas ? `<li><span style="color:var(--gris-oscuro)">Incluye <b>${e.autodiligenciadas}</b> autodiligenciadas por la empresa</span></li>` : ''}
              <li><span style="color:var(--gris-oscuro)"><b>${e.en_curso}</b> encuestas en curso (sin terminar)</span></li>
            </ul>
          </div>`
@@ -496,7 +495,7 @@
     const signo = (n) => (n > 0 ? '+' : '') + n;
 
     const kpis = [
-      { rot: 'Diligenciadas', val: p.diligenciadas, nota: `${p.autodiligenciadas} autodiligenciadas incluidas`, color: COLOR.contacto_efectivo_si },
+      { rot: 'Diligenciadas', val: p.diligenciadas, nota: `${p.en_curso} en curso`, color: COLOR.contacto_efectivo_si },
       { rot: 'Meta del estudio', val: p.meta, nota: `al ${fmtFecha(p.fecha_meta)}`, color: 'var(--azul)' },
       { rot: 'Faltan', val: p.faltan, nota: `${p.porcentaje}% de cumplimiento`, color: 'var(--e-int, #C0562F)' },
       { rot: 'Semanas restantes', val: p.semanas_restantes, nota: `${p.ritmo_necesario_semanal}/semana necesarias`, color: 'var(--tinta)' },
