@@ -104,7 +104,7 @@
     { k: 'gestion', t: 'Gestión diaria' },
     { k: 'agenda', t: 'Agenda de la semana' },
     { k: 'auto', t: 'Diligenciamiento autónomo' },
-    { k: 'avance', t: 'Avance por entrevistador', soloAdmin: true },
+    { k: 'avance', t: 'Avance por entrevistador', soloCienfi: true },
     { k: 'comparacion', t: 'Comparación', soloAdmin: true },
     // Exclusiva del perfil interno de CIENFI: el paquete de `admin` ni siquiera trae los
     // datos de proyección, así que un usuario de Cámara no puede ver ni deducir esta pestaña.
@@ -504,7 +504,7 @@
 
     const filasPersona = Object.entries(p.por_persona || {}).map(([nom, d]) => `
       <tr>
-        <td><b>${esc(NOMBRE_PERSONA[nom] || nom)}</b><div class="nota">desde ${fmtFecha(d.inicio)} · ${d.semanas_en_campo} sem.</div></td>
+        <td><b>${esc(NOMBRE_PERSONA[nom] || nom)}</b><div class="nota">desde ${fmtFecha(d.inicio)} · ${d.semanas_en_campo} sem.${d.meta_semanal_fija ? ` · meta fija ${d.meta_semanal_fija}/sem` : ''}</div></td>
         <td>${d.realizadas}</td>
         <td>${d.meta_acumulada}</td>
         <td><span class="semaforo ${d.semaforo}" style="padding:2px 9px;font-size:12px">${signo(d.diferencia)}</span></td>
