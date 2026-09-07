@@ -537,6 +537,13 @@
         <div class="proy-escala"><span>0</span><span>${p.diligenciadas} hechas · ${p.porcentaje}%</span><span>${p.meta}</span></div>
 
         <div class="proy-mensaje">${esc(p.mensaje)}</div>
+        ${p.brecha ? `<div class="proy-mensaje" style="background:#FDECEA;border-color:#F5B7B1;color:#7B1D16;margin-top:10px">
+          <b>La meta no cabe en el plazo con un ritmo sostenible.</b>
+          Con ${p.techo_semanal} encuestas por persona a la semana (Fernando ${(p.por_persona.Fernando || {}).meta_proxima_semana || 3}),
+          el equipo hace ${p.meta_semanal_equipo} semanales y llega a <b>${p.alcanzable}</b> el ${fmtFecha(p.fecha_meta)}:
+          quedan <b>${p.brecha}</b> encuestas por fuera. Cerrar esa brecha exige ampliar el plazo,
+          sumar personas o subir el techo semanal.
+        </div>` : ''}
       </div>
 
       <div class="tarjeta">
@@ -561,8 +568,9 @@
 
       <div class="tarjeta">
         <h2>Meta recalculada por entrevistador</h2>
-        <p class="ayuda">La meta acumulada se prorratea según el tiempo que cada quien lleva en campo, y lo que falta se
-          reparte entre las ${p.semanas_restantes} semanas restantes. Si una semana queda corta, el faltante se
+        <p class="ayuda">La meta acumulada se prorratea según el tiempo que cada quien lleva en campo. La meta semanal
+          se reparte <b>pareja</b> entre las ${p.semanas_restantes} semanas restantes, con un techo de
+          ${p.techo_semanal} por persona: nadie carga el rezago de otro. Si una semana queda corta, el faltante se
           redistribuye solo en la siguiente corrida.</p>
         <div class="tabla-wrap">
           <table class="tabla">
