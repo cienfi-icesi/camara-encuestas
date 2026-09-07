@@ -21,11 +21,11 @@
    "rol": "encuestador"
   }
  ],
- "fecha_corrida": "2026-09-05",
- "generado_en": "2026-09-05T16:53:01-05:00",
- "actualizado_en": "2026-09-05T16:53:01-05:00",
- "sello": "0b317ef20d33",
- "publicado_en": "2026-09-05T16:53:11-05:00",
+ "fecha_corrida": "2026-09-07",
+ "generado_en": "2026-09-07T08:21:17-05:00",
+ "actualizado_en": "2026-09-07T08:21:17-05:00",
+ "sello": "e12877aed227",
+ "publicado_en": "2026-09-07T08:21:20-05:00",
  "modo_modelo": 530,
  "modo_heuristico": 0,
  "modelo": "sonnet"
