@@ -364,15 +364,16 @@
     // Dos números distintos, sin mezclar: "diligenciadas" (la meta real) y, aparte, cuántas
     // de esas tienen los 4 módulos completos. Ver encuestas.resumen_persona.
     const dilig = e && (e.diligenciadas != null ? e.diligenciadas : e.completas);
-    // El número grande es el TOTAL terminado: suma las que aplicó el encuestador y las que la
-    // empresa diligenció sola. No se desglosan las autodiligenciadas porque el desglose
-    // confundía — una autodiligenciada a medias no está en el total, está en "en curso".
+    // El número grande cuenta TODA encuesta iniciada: las que aplicó el encuestador y las que
+    // la empresa diligenció sola, estén terminadas o no. Debajo se separa cuántas ya cerraron
+    // los cuatro módulos y cuántas siguen en curso.
     const colEnc = e && e.disponible
       ? `<div class="col enc">
            <div class="rot">Encuestas diligenciadas (total)</div>
-           <div class="big">${dilig}</div>
+           <div class="big">${e.realizadas}</div>
            <ul class="desglose" style="margin-top:12px">
-             <li><span style="color:var(--gris-oscuro)"><b>${e.en_curso}</b> encuestas en curso (sin terminar)</span></li>
+             <li><span style="color:var(--gris-oscuro)"><b>${dilig}</b> con los cuatro módulos terminados</span></li>
+             <li><span style="color:var(--gris-oscuro)"><b>${e.en_curso}</b> aún en curso</span></li>
            </ul>
          </div>`
       : '';
@@ -438,7 +439,8 @@
           ${items.map(([k, n, txt]) => `<li><span class="pt" style="background:${COLOR[k]}"></span> <b>${n}</b> ${txt}</li>`).join('')}
         </ul>
         <div class="pie-card">
-          <span><b>${e.diligenciadas != null ? e.diligenciadas : 0}</b> encuestas diligenciadas</span>
+          <span><b>${e.realizadas != null ? e.realizadas : 0}</b> encuestas</span>
+          <span><b>${e.diligenciadas != null ? e.diligenciadas : 0}</b> terminadas</span>
           <span><b>${e.en_curso != null ? e.en_curso : 0}</b> en curso</span>
           <span><b>${r.solo_correo || 0}</b> solo correo</span>
           <span><b>${r.sin_gestion || 0}</b> sin gestión</span>
@@ -495,7 +497,7 @@
     const signo = (n) => (n > 0 ? '+' : '') + n;
 
     const kpis = [
-      { rot: 'Diligenciadas', val: p.diligenciadas, nota: `${p.en_curso} en curso`, color: COLOR.contacto_efectivo_si },
+      { rot: 'Encuestas', val: p.diligenciadas, nota: `${p.terminadas} terminadas · ${p.en_curso} en curso`, color: COLOR.contacto_efectivo_si },
       { rot: 'Meta del estudio', val: p.meta, nota: `al ${fmtFecha(p.fecha_meta)}`, color: 'var(--azul)' },
       { rot: 'Faltan', val: p.faltan, nota: `${p.porcentaje}% de cumplimiento`, color: 'var(--e-int, #C0562F)' },
       { rot: 'Semanas restantes', val: p.semanas_restantes, nota: `${p.ritmo_necesario_semanal}/semana necesarias`, color: 'var(--tinta)' },
@@ -504,7 +506,7 @@
     const filasPersona = Object.entries(p.por_persona || {}).map(([nom, d]) => `
       <tr>
         <td><b>${esc(NOMBRE_PERSONA[nom] || nom)}</b><div class="nota">desde ${fmtFecha(d.inicio)} · ${d.semanas_en_campo} sem.${d.meta_semanal_fija ? ` · meta fija ${d.meta_semanal_fija}/sem` : ''}</div></td>
-        <td>${d.realizadas}</td>
+        <td>${d.realizadas}<div class="nota">${d.terminadas} terminadas</div></td>
         <td>${d.meta_acumulada}</td>
         <td><span class="semaforo ${d.semaforo}" style="padding:2px 9px;font-size:12px">${signo(d.diferencia)}</span></td>
         <td><b>${d.meta_proxima_semana}</b></td>
@@ -546,7 +548,7 @@
             <div class="rot">Avance esperado hoy</div><div class="val">${p.esperado_hoy}</div><div class="nota">según la línea recta</div>
           </div>
           <div class="proy-kpi" style="border-top-color:${COLOR.contacto_efectivo_si}">
-            <div class="rot">Avance real</div><div class="val">${p.diligenciadas}</div><div class="nota">encuestas terminadas</div>
+            <div class="rot">Avance real</div><div class="val">${p.diligenciadas}</div><div class="nota">encuestas iniciadas</div>
           </div>
           <div class="proy-kpi" style="border-top-color:${p.diferencia < 0 ? 'var(--e-sin, #B3261E)' : COLOR.contacto_efectivo_si}">
             <div class="rot">Diferencia</div><div class="val">${signo(p.diferencia)}</div><div class="nota">${p.diferencia < 0 ? 'por debajo de la línea' : 'sobre la línea'}</div>
@@ -565,7 +567,7 @@
         <div class="tabla-wrap">
           <table class="tabla">
             <thead><tr>
-              <th>Entrevistador</th><th>Realizadas</th><th>Meta acumulada</th><th>Diferencia</th>
+              <th>Entrevistador</th><th>Encuestas</th><th>Meta acumulada</th><th>Diferencia</th>
               <th>Próxima semana</th><th>Ritmo necesario</th><th>Proyección</th>
             </tr></thead>
             <tbody>${filasPersona}</tbody>
