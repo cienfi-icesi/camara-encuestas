@@ -206,3 +206,39 @@ tr.no-gestionada td { background: #FEF6F5; }
    hay algo que reportar (el push fallo, la corrida no se ejecuto). */
 .aviso-desfase.en-curso { background: #FFF7E6; border-color: #F1D9A6; color: #6B4E00; }
 .aviso-desfase.en-curso b { color: #5A3E00; }
+
+/* ---------- Avance por entrevistador (grilla 2x2) ---------- */
+.grid-avance { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 760px) { .grid-avance { grid-template-columns: 1fr 1fr; } }
+.card-avance { border: 1px solid var(--linea); border-radius: var(--radio); padding: 16px 18px; background: var(--blanco); display: flex; flex-direction: column; }
+.card-avance h3 { margin: 0 0 2px; font-size: 15px; color: var(--negro); }
+.card-avance .sub { font-size: 12px; color: var(--gris); margin-bottom: 10px; }
+.card-avance .big { font-size: 32px; font-weight: 800; line-height: 1; color: var(--negro); font-variant-numeric: tabular-nums; }
+.card-avance .big .de { font-size: 15px; font-weight: 600; color: var(--gris); }
+.card-avance .prog { height: 8px; border-radius: 5px; background: var(--neutro); border: 1px solid var(--linea); overflow: hidden; margin: 12px 0 10px; display: flex; }
+.card-avance .prog i { display: block; height: 100%; }
+.card-avance .desglose { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.card-avance .desglose li { display: flex; align-items: center; gap: 7px; padding: 2px 0; color: var(--gris-oscuro); }
+.card-avance .desglose .pt { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.card-avance .desglose b { color: var(--negro); }
+.card-avance .pie-card { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--linea); font-size: 12.5px; color: var(--gris-oscuro); display: flex; gap: 14px; flex-wrap: wrap; }
+
+/* ---------- Proyección de meta ---------- */
+.proy-kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 4px; }
+@media (min-width: 700px) { .proy-kpis { grid-template-columns: repeat(4, 1fr); } }
+.proy-kpi { border: 1px solid var(--linea); border-top-width: 3px; border-radius: var(--radio); padding: 12px 14px; background: var(--blanco); }
+.proy-kpi .rot { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gris-oscuro); margin-bottom: 5px; }
+.proy-kpi .val { font-size: 26px; font-weight: 800; line-height: 1; color: var(--negro); font-variant-numeric: tabular-nums; }
+.proy-kpi .nota { font-size: 12px; color: var(--gris); margin-top: 5px; }
+.semaforo { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.semaforo.adelante { background: #E7F5EC; color: #0F5C2E; }
+.semaforo.en_linea { background: #FFF6E0; color: #7A5A00; }
+.semaforo.atras { background: #FDECEA; color: #A3231B; }
+.semaforo .pt { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.proy-mensaje { margin: 12px 0 0; padding: 13px 15px; border-radius: var(--radio); background: var(--neutro); border: 1px solid var(--linea); font-size: 14px; line-height: 1.55; color: var(--tinta); }
+.proy-barra { height: 26px; border-radius: 7px; background: var(--neutro); border: 1px solid var(--linea); overflow: hidden; position: relative; margin: 14px 0 6px; }
+.proy-barra i { display: block; height: 100%; background: var(--e-si, #0F5C2E); }
+.proy-barra .marca-esperado { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--tinta); }
+.proy-barra .marca-esperado::after { content: attr(data-txt); position: absolute; top: -17px; left: 50%; transform: translateX(-50%); font-size: 10.5px; font-weight: 700; color: var(--tinta); white-space: nowrap; }
+.proy-escala { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--gris); margin-bottom: 16px; }
+.proy-graf { width: 100%; height: auto; display: block; }

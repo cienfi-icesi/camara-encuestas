@@ -19,14 +19,18 @@
   {
    "usuario": "fernando",
    "rol": "encuestador"
+  },
+  {
+   "usuario": "user-cienfi",
+   "rol": "cienfi"
   }
  ],
  "fecha_corrida": "2026-09-07",
- "generado_en": "2026-09-07T08:21:17-05:00",
- "actualizado_en": "2026-09-07T08:21:17-05:00",
- "sello": "e12877aed227",
- "publicado_en": "2026-09-07T08:21:20-05:00",
- "modo_modelo": 530,
- "modo_heuristico": 0,
+ "generado_en": "2026-09-07T10:45:09-05:00",
+ "actualizado_en": "2026-09-07T10:45:09-05:00",
+ "sello": "6c46e2050c64",
+ "publicado_en": "2026-09-07T10:47:32-05:00",
+ "modo_modelo": 521,
+ "modo_heuristico": 9,
  "modelo": "sonnet"
 }

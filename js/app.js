@@ -104,9 +104,16 @@
     { k: 'gestion', t: 'Gestión diaria' },
     { k: 'agenda', t: 'Agenda de la semana' },
     { k: 'auto', t: 'Diligenciamiento autónomo' },
+    { k: 'avance', t: 'Avance por entrevistador', soloAdmin: true },
     { k: 'comparacion', t: 'Comparación', soloAdmin: true },
+    // Exclusiva del perfil interno de CIENFI: el paquete de `admin` ni siquiera trae los
+    // datos de proyección, así que un usuario de Cámara no puede ver ni deducir esta pestaña.
+    { k: 'proyeccion', t: 'Proyección de meta', soloCienfi: true },
     { k: 'bitacora', t: 'Bitácora' },
   ];
+  // `cienfi` hereda todo lo de `admin` y suma lo suyo.
+  const esAdmin = () => DATOS && (DATOS.rol === 'admin' || DATOS.rol === 'cienfi');
+  const esCienfi = () => DATOS && DATOS.rol === 'cienfi' && !!DATOS.proyeccion;
 
   let DATOS = null;          // objeto descifrado
   let SECCION = 'resumen';   // sección visible
@@ -204,7 +211,7 @@
 
   // ---------------------------------------------------------------- tablero
   function personasDisponibles() {
-    if (DATOS.rol === 'admin') return (DATOS.personas || Object.keys(DATOS.resumen).filter((k) => k !== 'TOTAL'));
+    if (esAdmin()) return (DATOS.personas || Object.keys(DATOS.resumen).filter((k) => k !== 'TOTAL'));
     return [DATOS.persona];
   }
 
@@ -212,14 +219,14 @@
     $('vista-login').classList.add('oculto');
     $('vista-tablero').classList.remove('oculto');
     $('sesion').classList.remove('oculto');
-    $('sesion-nombre').textContent = DATOS.rol === 'admin' ? 'Coordinación (admin)' : (DATOS.nombre || DATOS.usuario || '');
-    $('t-descargas').classList.toggle('oculto', !(DATOS.rol === 'admin' && DATOS.reporte_3i_xlsx_b64));
+    $('sesion-nombre').textContent = esAdmin() ? (DATOS.rol === 'cienfi' ? 'CIENFI · interno' : 'Coordinación (admin)') : (DATOS.nombre || DATOS.usuario || '');
+    $('t-descargas').classList.toggle('oculto', !(esAdmin() && DATOS.reporte_3i_xlsx_b64));
     FESTIVOS = new Set(DATOS.festivos || []);
     const personas = personasDisponibles();
-    PERSONA = DATOS.rol === 'admin' ? 'TODAS' : personas[0];
+    PERSONA = esAdmin() ? 'TODAS' : personas[0];
     SECCION = 'resumen';
     const tabs = $('t-tabs'); tabs.innerHTML = '';
-    if (DATOS.rol === 'admin') {
+    if (esAdmin()) {
       ['TODAS'].concat(personas).forEach((p) => {
         const b = document.createElement('button'); b.type = 'button'; b.className = 'tab' + (p === PERSONA ? ' activa' : '');
         b.textContent = p === 'TODAS' ? 'Todo el equipo' : NOMBRE_PERSONA[p] || p;
@@ -266,7 +273,7 @@
 
   function renderSecciones() {
     const nav = $('t-secciones'); nav.innerHTML = '';
-    SECCIONES.filter((s) => !s.soloAdmin || DATOS.rol === 'admin').forEach((sec) => {
+    SECCIONES.filter((s) => (!s.soloAdmin || esAdmin()) && (!s.soloCienfi || esCienfi())).forEach((sec) => {
       const c = contadorSeccion(sec.k);
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'tab' + (sec.k === SECCION ? ' activa' : '');
@@ -297,7 +304,9 @@
     } else if (SECCION === 'gestion') renderGestion();
     else if (SECCION === 'agenda') renderAgenda();
     else if (SECCION === 'auto') renderAuto();
+    else if (SECCION === 'avance') renderAvance();
     else if (SECCION === 'comparacion') renderComparacion();
+    else if (SECCION === 'proyeccion') renderProyeccion();
     else if (SECCION === 'bitacora') renderBitacora();
   }
 
@@ -355,12 +364,16 @@
     // Dos números distintos, sin mezclar: "diligenciadas" (la meta real) y, aparte, cuántas
     // de esas tienen los 4 módulos completos. Ver encuestas.resumen_persona.
     const dilig = e && (e.diligenciadas != null ? e.diligenciadas : e.completas);
+    // El número grande es el TOTAL terminado e incluye las autodiligenciadas; el desglose lo
+    // dice explícitamente para que no se lean como una categoría aparte. "En curso" va abajo,
+    // separado, porque es lo que todavía no está terminado.
     const colEnc = e && e.disponible
       ? `<div class="col enc">
-           <div class="rot">Encuestas diligenciadas</div>
+           <div class="rot">Encuestas diligenciadas (total)</div>
            <div class="big">${dilig}</div>
            <ul class="desglose" style="margin-top:12px">
-             <li><span style="color:var(--gris-oscuro)">${e.realizadas} realizadas · ${e.en_curso} aún en curso${e.autodiligenciadas ? ' · ' + e.autodiligenciadas + ' autodiligenciadas' : ''}</span></li>
+             ${e.autodiligenciadas ? `<li><span style="color:var(--gris-oscuro)">Incluye <b>${e.autodiligenciadas}</b> autodiligenciadas por la empresa</span></li>` : ''}
+             <li><span style="color:var(--gris-oscuro)"><b>${e.en_curso}</b> encuestas en curso (sin terminar)</span></li>
            </ul>
          </div>`
       : '';
@@ -391,6 +404,175 @@
             .join('') + `</ul>`;
         })()}
       </div>${colEnc}`;
+  }
+
+  // ---------- Avance de contacto efectivo por entrevistador (grilla 2x2) ----------
+  // Mismo cálculo que el hero, pero por persona y sin depender de la pestaña activa: cada
+  // tarjeta usa el bloque `resumen[persona]` que ya viaja en el paquete.
+  function renderAvance() {
+    const personas = personasDisponibles();
+    const cont = $('t-avance');
+    if (!personas.length) { cont.innerHTML = vacio('Sin datos por entrevistador.'); return; }
+    cont.innerHTML = personas.map((p) => {
+      const r = DATOS.resumen[p] || {};
+      const total = r.total || 1;
+      const si = r.aceptaron || 0, resp = r.en_seguimiento || 0, no = r.rechazaron || 0;
+      const efe = r.gestion_efectiva != null ? r.gestion_efectiva : si + resp + no;
+      const w = (n) => (100 * n / total).toFixed(1);
+      const e = r.encuestas || {};
+      const pct = Math.round(100 * efe / total);
+      const items = [
+        ['contacto_efectivo_si', si, 'aceptaron'],
+        ['respondio_sin_decision', resp, 'respondieron, sin decidir'],
+        ['contacto_efectivo_no', no, 'no participan'],
+      ];
+      return `<div class="card-avance">
+        <h3>${esc(NOMBRE_PERSONA[p] || p)}</h3>
+        <div class="sub">${total} empresas asignadas · ${pct}% con gestión efectiva</div>
+        <div class="big">${efe} <span class="de">de ${total}</span></div>
+        <div class="prog">
+          <i style="width:${w(si)}%;background:${COLOR.contacto_efectivo_si}"></i>
+          <i style="width:${w(resp)}%;background:${COLOR.respondio_sin_decision}"></i>
+          <i style="width:${w(no)}%;background:${COLOR.contacto_efectivo_no}"></i>
+        </div>
+        <ul class="desglose">
+          ${items.map(([k, n, txt]) => `<li><span class="pt" style="background:${COLOR[k]}"></span> <b>${n}</b> ${txt}</li>`).join('')}
+        </ul>
+        <div class="pie-card">
+          <span><b>${e.diligenciadas != null ? e.diligenciadas : 0}</b> encuestas diligenciadas</span>
+          <span><b>${e.en_curso != null ? e.en_curso : 0}</b> en curso</span>
+          <span><b>${r.solo_correo || 0}</b> solo correo</span>
+          <span><b>${r.sin_gestion || 0}</b> sin gestión</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ---------- Proyección contra la meta (solo CIENFI) ----------
+  const ETIQ_SEMAFORO = { adelante: 'Adelantados', en_linea: 'En línea', atras: 'Retrasados' };
+
+  function grafTrayectoria(p) {
+    // Línea de avance real vs. trayectoria esperada. SVG inline: sin librerías, escala con
+    // el ancho del contenedor y hereda los colores del tema.
+    const s = p.serie || [];
+    if (s.length < 2) return '';
+    const W = 720, H = 220, ML = 42, MR = 14, MT = 14, MB = 26;
+    const n = s.length;
+    const maxY = Math.max(p.meta, ...s.map((x) => x.acumulado));
+    const x = (i) => ML + i * (W - ML - MR) / (n - 1);
+    const y = (v) => MT + (H - MT - MB) * (1 - v / maxY);
+    const real = s.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d.acumulado).toFixed(1)}`).join(' ');
+    // Esperado: recta de 0 en la primera semana a `meta` en la última.
+    const esp = `M${x(0)},${y(0)} L${x(n - 1)},${y(p.meta)}`;
+    const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(maxY * f));
+    const hoyIdx = s.findIndex((d) => d.semana > (p.hoy_semana || '')) ;
+    return `<svg class="proy-graf" viewBox="0 0 ${W} ${H}" role="img"
+        aria-label="Avance acumulado de encuestas frente a la trayectoria esperada">
+      ${ticks.map((t) => `<g><line x1="${ML}" x2="${W - MR}" y1="${y(t)}" y2="${y(t)}" stroke="var(--linea)" stroke-width="1"/>
+        <text x="${ML - 7}" y="${y(t) + 4}" text-anchor="end" font-size="10.5" fill="var(--gris)">${t}</text></g>`).join('')}
+      <path d="${esp}" fill="none" stroke="var(--gris-claro)" stroke-width="2" stroke-dasharray="6 5"/>
+      <path d="${real}" fill="none" stroke="${COLOR.contacto_efectivo_si}" stroke-width="2.5" stroke-linejoin="round"/>
+      ${s.map((d, i) => d.nuevas ? `<circle cx="${x(i).toFixed(1)}" cy="${y(d.acumulado).toFixed(1)}" r="2.6" fill="${COLOR.contacto_efectivo_si}"/>` : '').join('')}
+      <text x="${ML}" y="${H - 8}" font-size="10.5" fill="var(--gris)">${fmtSemanaCorta(s[0].semana)}</text>
+      <text x="${W - MR}" y="${H - 8}" font-size="10.5" fill="var(--gris)" text-anchor="end">${fmtSemanaCorta(s[n - 1].semana)}</text>
+    </svg>
+    <div class="proy-escala" style="margin-top:2px">
+      <span><span style="display:inline-block;width:16px;height:2.5px;background:${COLOR.contacto_efectivo_si};vertical-align:middle"></span> Avance real</span>
+      <span><span style="display:inline-block;width:16px;height:0;border-top:2px dashed var(--gris-claro);vertical-align:middle"></span> Trayectoria esperada hacia ${p.meta}</span>
+    </div>`;
+  }
+
+  function fmtSemanaCorta(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  }
+
+  function renderProyeccion() {
+    const p = DATOS.proyeccion;
+    const cont = $('t-proyeccion');
+    if (!p) { cont.innerHTML = `<div class="tarjeta">${vacio('Sin datos de proyección.')}</div>`; return; }
+    const pctBarra = Math.min(100, 100 * p.diligenciadas / p.meta);
+    const pctEsper = Math.min(100, 100 * p.esperado_hoy / p.meta);
+    const signo = (n) => (n > 0 ? '+' : '') + n;
+
+    const kpis = [
+      { rot: 'Diligenciadas', val: p.diligenciadas, nota: `${p.autodiligenciadas} autodiligenciadas incluidas`, color: COLOR.contacto_efectivo_si },
+      { rot: 'Meta del estudio', val: p.meta, nota: `al ${fmtFecha(p.fecha_meta)}`, color: 'var(--azul)' },
+      { rot: 'Faltan', val: p.faltan, nota: `${p.porcentaje}% de cumplimiento`, color: 'var(--e-int, #C0562F)' },
+      { rot: 'Semanas restantes', val: p.semanas_restantes, nota: `${p.ritmo_necesario_semanal}/semana necesarias`, color: 'var(--tinta)' },
+    ];
+
+    const filasPersona = Object.entries(p.por_persona || {}).map(([nom, d]) => `
+      <tr>
+        <td><b>${esc(NOMBRE_PERSONA[nom] || nom)}</b><div class="nota">desde ${fmtFecha(d.inicio)} · ${d.semanas_en_campo} sem.</div></td>
+        <td>${d.realizadas}</td>
+        <td>${d.meta_acumulada}</td>
+        <td><span class="semaforo ${d.semaforo}" style="padding:2px 9px;font-size:12px">${signo(d.diferencia)}</span></td>
+        <td><b>${d.meta_proxima_semana}</b></td>
+        <td>${d.ritmo_necesario_semanal}<div class="nota">ritmo actual ${d.ritmo_reciente_semanal}</div></td>
+        <td>${d.proyectado_cierre}<div class="nota">de ${d.cuota}</div></td>
+      </tr>`).join('');
+
+    cont.innerHTML = `
+      <div class="tarjeta">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
+          <div>
+            <h2 style="margin:0 0 3px">Proyección hacia la meta de ${p.meta} encuestas</h2>
+            <p class="ayuda" style="margin:0">Campo abierto el ${fmtFecha(p.inicio_campo)} · cierre el ${fmtFecha(p.fecha_meta)}. Todo se recalcula en cada corrida.</p>
+          </div>
+          <span class="semaforo ${p.semaforo}"><span class="pt"></span> ${ETIQ_SEMAFORO[p.semaforo] || ''}</span>
+        </div>
+
+        <div class="proy-kpis" style="margin-top:16px">
+          ${kpis.map((k) => `<div class="proy-kpi" style="border-top-color:${k.color}">
+            <div class="rot">${k.rot}</div><div class="val">${k.val}</div><div class="nota">${esc(k.nota)}</div>
+          </div>`).join('')}
+        </div>
+
+        <div class="proy-barra" style="margin-top:20px">
+          <i style="width:${pctBarra.toFixed(1)}%"></i>
+          <span class="marca-esperado" style="left:${pctEsper.toFixed(1)}%" data-txt="esperado ${p.esperado_hoy}"></span>
+        </div>
+        <div class="proy-escala"><span>0</span><span>${p.diligenciadas} hechas · ${p.porcentaje}%</span><span>${p.meta}</span></div>
+
+        <div class="proy-mensaje">${esc(p.mensaje)}</div>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Trayectoria</h2>
+        <p class="ayuda">Acumulado real semana a semana frente a la línea que llevaría a ${p.meta} en la fecha de cierre.</p>
+        ${grafTrayectoria(p)}
+        <div class="proy-kpis" style="margin-top:16px">
+          <div class="proy-kpi" style="border-top-color:var(--gris-claro)">
+            <div class="rot">Avance esperado hoy</div><div class="val">${p.esperado_hoy}</div><div class="nota">según la línea recta</div>
+          </div>
+          <div class="proy-kpi" style="border-top-color:${COLOR.contacto_efectivo_si}">
+            <div class="rot">Avance real</div><div class="val">${p.diligenciadas}</div><div class="nota">encuestas terminadas</div>
+          </div>
+          <div class="proy-kpi" style="border-top-color:${p.diferencia < 0 ? 'var(--e-sin, #B3261E)' : COLOR.contacto_efectivo_si}">
+            <div class="rot">Diferencia</div><div class="val">${signo(p.diferencia)}</div><div class="nota">${p.diferencia < 0 ? 'por debajo de la línea' : 'sobre la línea'}</div>
+          </div>
+          <div class="proy-kpi" style="border-top-color:var(--azul)">
+            <div class="rot">Proyección al cierre</div><div class="val">${p.proyectado_cierre}</div><div class="nota">si sostiene ${p.ritmo_reciente_semanal}/semana</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Meta recalculada por entrevistador</h2>
+        <p class="ayuda">La meta acumulada se prorratea según el tiempo que cada quien lleva en campo, y lo que falta se
+          reparte entre las ${p.semanas_restantes} semanas restantes. Si una semana queda corta, el faltante se
+          redistribuye solo en la siguiente corrida.</p>
+        <div class="tabla-wrap">
+          <table class="tabla">
+            <thead><tr>
+              <th>Entrevistador</th><th>Realizadas</th><th>Meta acumulada</th><th>Diferencia</th>
+              <th>Próxima semana</th><th>Ritmo necesario</th><th>Proyección</th>
+            </tr></thead>
+            <tbody>${filasPersona}</tbody>
+          </table>
+        </div>
+      </div>`;
   }
 
   function conteosPorCategoria() {
