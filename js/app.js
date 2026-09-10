@@ -463,6 +463,13 @@
     const x = (i) => ML + i * (W - ML - MR) / (n - 1);
     const y = (v) => MT + (H - MT - MB) * (1 - v / maxY);
     const real = s.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d.acumulado).toFixed(1)}`).join(' ');
+    // Tercera línea: lo real más las entrevistas ya agendadas. Solo existe en las semanas que
+    // tienen citas pactadas, así que se dibuja sobre ese tramo y ahí termina — no es una
+    // proyección del ritmo, es lo que ya está comprometido.
+    const ptsAg = s.map((d, i) => ({ i, v: d.acumulado_agendado })).filter((d) => d.v != null);
+    const agLinea = ptsAg.length > 1
+      ? ptsAg.map((d, k) => `${k ? 'L' : 'M'}${x(d.i).toFixed(1)},${y(d.v).toFixed(1)}`).join(' ')
+      : '';
     // Esperado: recta de 0 en la primera semana a `meta` en la última.
     const esp = `M${x(0)},${y(0)} L${x(n - 1)},${y(p.meta)}`;
     const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(maxY * f));
@@ -472,6 +479,8 @@
       ${ticks.map((t) => `<g><line x1="${ML}" x2="${W - MR}" y1="${y(t)}" y2="${y(t)}" stroke="var(--linea)" stroke-width="1"/>
         <text x="${ML - 7}" y="${y(t) + 4}" text-anchor="end" font-size="10.5" fill="var(--gris)">${t}</text></g>`).join('')}
       <path d="${esp}" fill="none" stroke="var(--gris-claro)" stroke-width="2" stroke-dasharray="6 5"/>
+      ${agLinea ? `<path d="${agLinea}" fill="none" stroke="var(--azul)" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round"/>
+      ${ptsAg.map((d) => `<circle cx="${x(d.i).toFixed(1)}" cy="${y(d.v).toFixed(1)}" r="2.4" fill="var(--azul)"/>`).join('')}` : ''}
       <path d="${real}" fill="none" stroke="${COLOR.contacto_efectivo_si}" stroke-width="2.5" stroke-linejoin="round"/>
       ${s.map((d, i) => d.nuevas ? `<circle cx="${x(i).toFixed(1)}" cy="${y(d.acumulado).toFixed(1)}" r="2.6" fill="${COLOR.contacto_efectivo_si}"/>` : '').join('')}
       <text x="${ML}" y="${H - 8}" font-size="10.5" fill="var(--gris)">${fmtSemanaCorta(s[0].semana)}</text>
@@ -480,6 +489,7 @@
     <div class="proy-escala" style="margin-top:2px">
       <span><span style="display:inline-block;width:16px;height:2.5px;background:${COLOR.contacto_efectivo_si};vertical-align:middle"></span> Avance real</span>
       <span><span style="display:inline-block;width:16px;height:0;border-top:2px dashed var(--gris-claro);vertical-align:middle"></span> Trayectoria esperada hacia ${p.meta}</span>
+      ${agLinea ? `<span><span style="display:inline-block;width:16px;height:0;border-top:2px dashed var(--azul);vertical-align:middle"></span> Si se realizan las agendadas</span>` : ''}
     </div>`;
   }
 
@@ -507,6 +517,7 @@
       <tr>
         <td><b>${esc(NOMBRE_PERSONA[nom] || nom)}</b><div class="nota">desde ${fmtFecha(d.inicio)} · ${d.semanas_en_campo} sem.${d.meta_semanal_fija ? ` · meta fija ${d.meta_semanal_fija}/sem` : ''}</div></td>
         <td>${d.realizadas}<div class="nota">${d.terminadas} terminadas</div></td>
+        <td>${d.agendadas_futuras ? `<b>${d.realizadas_con_agendadas}</b><div class="nota">+${d.agendadas_futuras} agendada${d.agendadas_futuras > 1 ? 's' : ''}</div>` : `<span class="nota">${d.realizadas}</span>`}</td>
         <td>${d.meta_acumulada}</td>
         <td><span class="semaforo ${d.semaforo}" style="padding:2px 9px;font-size:12px">${signo(d.diferencia)}</span></td>
         <td><b>${d.meta_proxima_semana}</b></td>
@@ -546,6 +557,42 @@
         </div>` : ''}
       </div>
 
+      ${(p.agendadas && p.agendadas.futuras) ? `<div class="tarjeta">
+        <h2 style="margin:0 0 3px">Si se realizan las entrevistas ya agendadas</h2>
+        <p class="ayuda" style="margin:0 0 14px">Citas con fecha pactada posterior a hoy que siguen pendientes. Es el único
+          tramo del futuro que ya está comprometido con la empresa: no es una proyección del ritmo, es lo que está en la agenda.</p>
+        <div class="proy-kpis">
+          <div class="proy-kpi" style="border-top-color:var(--azul)">
+            <div class="rot">Agendadas a futuro</div><div class="val">${p.agendadas.futuras}</div>
+            <div class="nota">pendientes de realizar</div>
+          </div>
+          <div class="proy-kpi" style="border-top-color:${COLOR.contacto_efectivo_si}">
+            <div class="rot">Encuestas si todas se hacen</div><div class="val">${p.agendadas.diligenciadas_con_agendadas}</div>
+            <div class="nota">hoy vamos en ${p.diligenciadas}</div>
+          </div>
+          <div class="proy-kpi" style="border-top-color:var(--e-int, #C0562F)">
+            <div class="rot">Faltarían</div><div class="val">${p.agendadas.faltan_con_agendadas}</div>
+            <div class="nota">${p.agendadas.porcentaje_con_agendadas}% de la meta · hoy ${p.faltan}</div>
+          </div>
+          <div class="proy-kpi" style="border-top-color:${p.agendadas.diferencia_con_agendadas < 0 ? 'var(--e-sin, #B3261E)' : COLOR.contacto_efectivo_si}">
+            <div class="rot">Contra lo esperado</div><div class="val">${signo(p.agendadas.diferencia_con_agendadas)}</div>
+            <div class="nota">hoy ${signo(p.diferencia)}</div>
+          </div>
+        </div>
+        <div class="proy-mensaje" style="margin-top:14px">${esc(p.agendadas.mensaje)}</div>
+        <div class="tabla-wrap" style="margin-top:14px">
+          <table class="tabla">
+            <thead><tr><th>Fecha</th><th>Empresa</th><th>Entrevistador</th><th>Modalidad</th></tr></thead>
+            <tbody>${(p.agendadas.detalle || []).map((a) => `<tr>
+              <td>${fmtFecha(a.fecha)}</td>
+              <td><b>${esc(a.empresa || '')}</b><div class="nota">${esc(a.id || '')}</div></td>
+              <td>${esc(NOMBRE_PERSONA[a.persona] || a.persona || '')}</td>
+              <td>${a.modalidad ? esc(a.modalidad) : '<span class="nota">sin definir</span>'}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </div>` : ''}
+
       <div class="tarjeta">
         <h2>Trayectoria</h2>
         <p class="ayuda">Acumulado real semana a semana frente a la línea que llevaría a ${p.meta} en la fecha de cierre.</p>
@@ -575,7 +622,7 @@
         <div class="tabla-wrap">
           <table class="tabla">
             <thead><tr>
-              <th>Entrevistador</th><th>Encuestas</th><th>Meta acumulada</th><th>Diferencia</th>
+              <th>Entrevistador</th><th>Encuestas</th><th>Con agendadas</th><th>Meta acumulada</th><th>Diferencia</th>
               <th>Próxima semana</th><th>Ritmo necesario</th><th>Proyección</th>
             </tr></thead>
             <tbody>${filasPersona}</tbody>
