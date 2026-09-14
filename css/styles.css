@@ -78,6 +78,15 @@ label { display: block; font-size: 13px; font-weight: 600; color: var(--gris-osc
 .hero .desglose li { display: flex; align-items: center; gap: 8px; padding: 3px 0; color: var(--gris-oscuro); }
 .hero .desglose .pt { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 .hero .desglose b { color: var(--negro); }
+
+/* Origen del contacto (Cámara vs. equipo): bloque secundario dentro del hero. Estilos
+   propios y no anidados en .hero porque #t-hero solo lleva la clase "hero" cuando hay
+   segunda columna de encuestas; sin esto el bloque se veía sin formato en ese caso. */
+.aporte { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--linea); }
+.aporte .rot { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gris-oscuro); margin-bottom: 6px; }
+.aporte .desglose { list-style: none; margin: 0; padding: 0; font-size: 13.5px; }
+.aporte .desglose li { padding: 3px 0; color: var(--gris-oscuro); }
+.aporte .desglose b { color: var(--negro); font-variant-numeric: tabular-nums; }
 @media (min-width: 720px) { .hero { display: grid; grid-template-columns: 1.6fr 1fr; }
   .hero .col + .col { border-top: 0; border-left: 1px solid var(--linea); } }
 .kpi.si { border-top-color: var(--e-si); } .kpi.faltan { border-top-color: var(--azul); } .kpi.resp { border-top-color: var(--e-resp); }

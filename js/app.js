@@ -403,7 +403,27 @@
             .map((x) => `<li><span class="pt" style="background:${COLOR_CAT[x.k]}"></span> <b>${c[x.k]}</b> ${x.txt}${x.extra ? ` <span style="color:var(--gris)">${x.extra}</span>` : ''}</li>`)
             .join('') + `</ul>`;
         })()}
+        ${renderAporteCamara(r)}
       </div>${colEnc}`;
+  }
+
+  // De dónde salió el contacto: gestión de la Cámara de Comercio o del equipo. La Cámara
+  // empezó a pasar contactos a finales de agosto y quiere saber cuánto pesó su aporte; el
+  // conteo sale de una lista verificada a mano (config.CONTACTOS_CAMARA), no de "aparece la
+  // Cámara en el hilo" — en los correos masivos la Cámara va en copia casi siempre.
+  function renderAporteCamara(r) {
+    const cam = r.contactos_camara;
+    if (cam == null) return '';                       // corrida anterior a este indicador
+    const eq = r.contactos_equipo != null ? r.contactos_equipo : (r.total || 0) - cam;
+    const efe = r.camara_efectivas;
+    return `<div class="aporte">
+      <div class="rot">Origen del contacto</div>
+      <ul class="desglose">
+        <li><b>${cam}</b> aportadas por la Cámara de Comercio${
+          efe != null ? ` <span style="color:var(--gris)">· ${efe} ya respondieron</span>` : ''}</li>
+        <li><b>${eq}</b> gestionadas por el equipo</li>
+      </ul>
+    </div>`;
   }
 
   // ---------- Avance de contacto efectivo por entrevistador (grilla 2x2) ----------
