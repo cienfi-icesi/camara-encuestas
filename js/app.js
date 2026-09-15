@@ -122,6 +122,9 @@
   let SEMANA = null;         // corte de Comparación: lunes ISO, 'todo' = acumulado, null = sin resolver
   const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const esHabil = (d) => d.getDay() !== 0 && d.getDay() !== 6 && !FESTIVOS.has(iso(d));
+  // Hora a la que arranca la corrida diaria. Tiene que coincidir con HORA en
+  // programar_diario.sh: de ahí sale si ver el cierre de ayer es lo normal o es un fallo.
+  const HORA_CORRIDA = 18;
   // Último día hábil a fecha de HOY (no de cuando se generó el archivo): es lo que permite
   // detectar que el tablero se quedó atrás, que es justo lo que nadie notó en agosto de 2026.
   function ultimoHabil(desde) {
@@ -325,28 +328,37 @@
     d.classList.add('oculto');
     d.classList.remove('en-curso');
     if (DATOS.fecha_corrida && DATOS.fecha_corrida < esperado) {
-      // Dos situaciones muy distintas que antes se avisaban igual, en rojo:
+      // Dos situaciones muy distintas que no se pueden avisar igual:
       //
-      //  (a) La corrida de hoy todavia no ha terminado. Es lo normal a primera hora: el
-      //      2026-08-26 arranco 07:13 y tardo hasta pasado el mediodia porque OneDrive tenia
-      //      42 archivos nuevos por descargar. No hay nada roto y no hay nada que reportar;
-      //      decirle al encuestador que "avise a la coordinacion" vuelve el aviso ruido diario,
-      //      y el dia que falle de verdad ya nadie lo mira.
-      //  (b) Los datos llevan mas de un dia habil de atraso, o ya paso el mediodia y siguen
-      //      sin llegar. Ahi si ocurrio algo (el push fallo, la corrida no se ejecuto).
+      //  (a) Todavia no le toca correr. La corrida es VESPERTINA (18:00, ver
+      //      programar_diario.sh): durante toda la jornada el tablero muestra el cierre del
+      //      dia habil anterior, y eso es lo correcto, no un retraso. La lista de hoy salio
+      //      por correo anoche.
+      //  (b) Ya paso la hora y no llego nada, o los datos son mas viejos que el ultimo
+      //      cierre. Ahi si fallo algo (no corrio, o el push no subio).
+      //
+      // La version anterior daba por hecho el horario de las 7:00 y decia "la corrida de hoy
+      // todavia no ha terminado" a las 8 de la manana. Con el horario de las 18:00 eso pasó a
+      // ser falso —no habia empezado— y ademas mandaba al encuestador a un correo que no iba a
+      // recibir: con corrida vespertina el correo llega la NOCHE ANTERIOR. Peor: daba por
+      // normal el dia en que la corrida no estaba programada en ninguna parte (2026-09-15).
       const ayer = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - 1);
       const unDiaHabil = iso(ultimoHabil(ayer));
-      const recienteYTemprano = DATOS.fecha_corrida >= unDiaHabil && ahora.getHours() < 14;
-      if (recienteYTemprano) {
-        d.innerHTML = `<b>La corrida de hoy todavía no ha terminado.</b> Aquí ves los datos del ` +
-          `${esc(fmtDiaFecha(DATOS.fecha_corrida))}, el último día hábil cerrado. El tablero se actualiza solo ` +
-          `cuando la corrida termina de revisar la evidencia nueva; mientras tanto, guíate por el correo que ` +
-          `recibiste hoy. No hay nada que reportar.`;
+      // +1 h de margen sobre HORA_CORRIDA para que alcance a revisar, cifrar y publicar.
+      const yaDebioCorrer = esHabil(ahora) && ahora.getHours() >= HORA_CORRIDA + 1;
+      const traeUltimoCierre = DATOS.fecha_corrida >= unDiaHabil;
+      if (traeUltimoCierre && !yaDebioCorrer) {
+        d.innerHTML = `<b>Datos del ${esc(fmtDiaFecha(DATOS.fecha_corrida))}, el último cierre.</b> ` +
+          `La corrida diaria es a las ${HORA_CORRIDA}:00, así que durante el día el tablero muestra el cierre ` +
+          `del día hábil anterior — es lo normal, no hay nada que reportar. Tu lista de hoy te llegó anoche ` +
+          `por correo.`;
         d.classList.add('en-curso');
       } else {
         d.innerHTML = `<b>Estos datos no están al día.</b> Son de la corrida del ${esc(fmtDiaFecha(DATOS.fecha_corrida))}, ` +
-          `y el último día hábil es ${esc(fmtDiaFecha(esperado))}. Lo que veas aquí puede no coincidir con tu correo ` +
-          `de hoy: avísale a la coordinación para que revise la publicación del tablero.`;
+          `y el último día hábil es ${esc(fmtDiaFecha(esperado))}. ` +
+          (yaDebioCorrer ? `La corrida de las ${HORA_CORRIDA}:00 no publicó. ` : '') +
+          `Lo que veas aquí puede no coincidir con tu correo: avísale a la coordinación para que revise la ` +
+          `publicación del tablero.`;
       }
       d.classList.remove('oculto');
     }
