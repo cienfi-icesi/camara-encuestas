@@ -326,7 +326,6 @@
     const ahora = new Date();
     const esperado = iso(ultimoHabil(ahora));
     d.classList.add('oculto');
-    d.classList.remove('en-curso');
     if (DATOS.fecha_corrida && DATOS.fecha_corrida < esperado) {
       // Dos situaciones muy distintas que no se pueden avisar igual:
       //
@@ -347,20 +346,18 @@
       // +1 h de margen sobre HORA_CORRIDA para que alcance a revisar, cifrar y publicar.
       const yaDebioCorrer = esHabil(ahora) && ahora.getHours() >= HORA_CORRIDA + 1;
       const traeUltimoCierre = DATOS.fecha_corrida >= unDiaHabil;
-      if (traeUltimoCierre && !yaDebioCorrer) {
-        d.innerHTML = `<b>Datos del ${esc(fmtDiaFecha(DATOS.fecha_corrida))}, el último cierre.</b> ` +
-          `La corrida diaria es a las ${HORA_CORRIDA}:00, así que durante el día el tablero muestra el cierre ` +
-          `del día hábil anterior — es lo normal, no hay nada que reportar. Tu lista de hoy te llegó anoche ` +
-          `por correo.`;
-        d.classList.add('en-curso');
-      } else {
+      // El caso normal NO se avisa. Durante la jornada, ver el cierre del día hábil anterior es
+      // lo correcto, y decirlo cada mañana convertía la franja en ruido fijo: el día que salga
+      // de verdad, nadie la habría mirado. La fecha de la corrida ya está en la cabecera para
+      // quien quiera comprobarla. Solo se habla cuando hay algo roto.
+      if (!traeUltimoCierre || yaDebioCorrer) {
         d.innerHTML = `<b>Estos datos no están al día.</b> Son de la corrida del ${esc(fmtDiaFecha(DATOS.fecha_corrida))}, ` +
           `y el último día hábil es ${esc(fmtDiaFecha(esperado))}. ` +
           (yaDebioCorrer ? `La corrida de las ${HORA_CORRIDA}:00 no publicó. ` : '') +
           `Lo que veas aquí puede no coincidir con tu correo: avísale a la coordinación para que revise la ` +
           `publicación del tablero.`;
+        d.classList.remove('oculto');
       }
-      d.classList.remove('oculto');
     }
   }
 

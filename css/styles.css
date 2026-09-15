@@ -213,8 +213,6 @@ tr.no-gestionada td { background: #FEF6F5; }
 
 /* Corrida en curso: informativo, no alarma. El rojo se reserva para cuando de verdad
    hay algo que reportar (el push fallo, la corrida no se ejecuto). */
-.aviso-desfase.en-curso { background: #FFF7E6; border-color: #F1D9A6; color: #6B4E00; }
-.aviso-desfase.en-curso b { color: #5A3E00; }
 
 /* ---------- Avance por entrevistador (grilla 2x2) ---------- */
 .grid-avance { display: grid; grid-template-columns: 1fr; gap: 14px; }
