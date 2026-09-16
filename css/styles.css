@@ -249,3 +249,12 @@ tr.no-gestionada td { background: #FEF6F5; }
 .proy-barra .marca-esperado::after { content: attr(data-txt); position: absolute; top: -17px; left: 50%; transform: translateX(-50%); font-size: 10.5px; font-weight: 700; color: var(--tinta); white-space: nowrap; }
 .proy-escala { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--gris); margin-bottom: 16px; }
 .proy-graf { width: 100%; height: auto; display: block; }
+
+/* Cobertura de soportes: cifras alineadas y barra de porcentaje. `.num` va acotado a
+   .tabla-cob porque `.lista .num` es otra cosa (la bolita numerada de la lista de hoy). */
+.tabla-cob .num { text-align: right; font-variant-numeric: tabular-nums; }
+.tabla-cob .fila-total td { border-top: 2px solid var(--borde); }
+.barra-cob { display: inline-block; vertical-align: middle; width: 120px; max-width: 40vw; height: 8px;
+             border-radius: 5px; background: var(--neutro); border: 1px solid var(--borde); overflow: hidden; }
+.barra-cob i { display: block; height: 100%; background: var(--azul); }
+.pct-cob { margin-left: 8px; font-variant-numeric: tabular-nums; color: var(--gris-oscuro); font-size: 13px; }

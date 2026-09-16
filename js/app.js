@@ -105,6 +105,8 @@
     { k: 'agenda', t: 'Agenda de la semana' },
     { k: 'auto', t: 'Diligenciamiento autónomo' },
     { k: 'avance', t: 'Avance por entrevistador', soloCienfi: true },
+    { k: 'kam', t: 'Contactos KAM', soloCienfi: true },
+    { k: 'cobertura', t: 'Cobertura de soportes', soloCienfi: true },
     { k: 'comparacion', t: 'Comparación', soloAdmin: true },
     // Exclusiva del perfil interno de CIENFI: el paquete de `admin` ni siquiera trae los
     // datos de proyección, así que un usuario de Cámara no puede ver ni deducir esta pestaña.
@@ -308,6 +310,8 @@
     else if (SECCION === 'agenda') renderAgenda();
     else if (SECCION === 'auto') renderAuto();
     else if (SECCION === 'avance') renderAvance();
+    else if (SECCION === 'kam') renderKam();
+    else if (SECCION === 'cobertura') renderCobertura();
     else if (SECCION === 'comparacion') renderComparacion();
     else if (SECCION === 'proyeccion') renderProyeccion();
     else if (SECCION === 'bitacora') renderBitacora();
@@ -433,6 +437,117 @@
         <li><b>${eq}</b> gestionadas por el equipo</li>
       </ul>
     </div>`;
+  }
+
+  // ---------- Contactos KAM ----------
+  // El campo `kam` lo pone agente/kam.py leyendo la frase del correo de invitación, y solo
+  // viaja en el paquete de cienfi. Se agrupa por KAM porque la pregunta de fondo no es cuántas
+  // empresas hay, sino si abrir la puerta por un KAM está sirviendo: el estado de gestión va
+  // al lado con las mismas categorías del resto del tablero.
+  function renderKam() {
+    const cont = $('t-kam');
+    const conKam = (DATOS.empresas || []).filter((e) => e.kam);
+    if (!conKam.length) { cont.innerHTML = vacio('Ninguna empresa registra contacto abierto por un KAM.'); return; }
+
+    const porKam = {};
+    conKam.forEach((e) => (porKam[e.kam] = porKam[e.kam] || []).push(e));
+    const efectivas = (arr) => arr.filter((e) => {
+      const s = (e.verificado || {}).estado_verificado;
+      return s === 'contacto_efectivo_si' || s === 'contacto_efectivo_no' || s === 'respondio_sin_decision';
+    }).length;
+    const nombres = Object.keys(porKam).sort((a, b) => porKam[b].length - porKam[a].length);
+
+    const resumen = `<div class="tabla-wrap"><table class="tabla">
+      <thead><tr><th>KAM</th><th>Empresas</th><th>Con respuesta</th><th>Aceptaron</th></tr></thead>
+      <tbody>${nombres.map((k) => {
+        const arr = porKam[k];
+        const si = arr.filter((e) => (e.verificado || {}).estado_verificado === 'contacto_efectivo_si').length;
+        return `<tr><td><b>${esc(k)}</b></td><td>${arr.length}</td><td>${efectivas(arr)}</td><td>${si}</td></tr>`;
+      }).join('')}
+      <tr><td><b>Total</b></td><td><b>${conKam.length}</b></td><td><b>${efectivas(conKam)}</b></td>
+          <td><b>${conKam.filter((e) => (e.verificado || {}).estado_verificado === 'contacto_efectivo_si').length}</b></td></tr>
+      </tbody></table></div>`;
+
+    const filas = nombres.map((k) => porKam[k]
+      .sort((a, b) => String(a.empresa).localeCompare(String(b.empresa)))
+      .map((e, i) => {
+        const cat = categoria(e);
+        return `<tr>
+          <td>${i === 0 ? `<b>${esc(k)}</b>` : ''}</td>
+          <td>${esc(e.id)}</td>
+          <td>${esc(e.empresa || '')}</td>
+          <td>${esc(NOMBRE_PERSONA[e.persona] || e.persona || '')}</td>
+          <td><span class="chip" style="background:${COLOR_CAT[cat]}">${esc(ETIQUETA_CAT[cat])}</span></td>
+        </tr>`;
+      }).join('')).join('');
+
+    cont.innerHTML = resumen + `<div class="tabla-wrap" style="margin-top:18px"><table class="tabla">
+      <thead><tr><th>KAM</th><th>id</th><th>Empresa</th><th>Entrevistador</th><th>Estado</th></tr></thead>
+      <tbody>${filas}</tbody></table></div>`;
+  }
+
+  // ---------- Cobertura de soportes por entrevistador ----------
+  // "Sin ningún soporte" no es lo mismo que "sin gestión": una empresa puede estar trabajada y
+  // sin archivo subido. Por eso se cuenta sobre `evidencia.n_archivos` (lo que hay en la
+  // carpeta) y no sobre el veredicto.
+  function renderCobertura() {
+    const cont = $('t-cobertura');
+    const emp = DATOS.empresas || [];
+    if (!emp.length) { cont.innerHTML = vacio('Sin empresas.'); return; }
+    const nArch = (e) => ((e.evidencia || {}).n_archivos) || 0;
+    const personas = (DATOS.personas || []).filter((p) => emp.some((e) => e.persona === p));
+
+    const fila = (etiqueta, arr, clase) => {
+      const con = arr.filter((e) => nArch(e) > 0).length;
+      const sin = arr.length - con;
+      const pct = arr.length ? Math.round(100 * con / arr.length) : 0;
+      return `<tr${clase ? ` class="${clase}"` : ''}>
+        <td>${etiqueta}</td>
+        <td class="num">${arr.length}</td>
+        <td class="num">${con}</td>
+        <td class="num">${sin}</td>
+        <td><div class="barra-cob"><i style="width:${pct}%"></i></div><span class="pct-cob">${pct}%</span></td>
+      </tr>`;
+    };
+
+    const sinSoporte = emp.filter((e) => nArch(e) === 0);
+    cont.innerHTML = `<div class="tabla-wrap"><table class="tabla tabla-cob">
+      <thead><tr><th>Entrevistador</th><th class="num">Asignadas</th><th class="num">Con soporte</th>
+        <th class="num">Sin ningún soporte</th><th>Cobertura</th></tr></thead>
+      <tbody>
+        ${personas.map((p) => fila(esc(NOMBRE_PERSONA[p] || p), emp.filter((e) => e.persona === p))).join('')}
+        ${fila('<b>Total</b>', emp, 'fila-total')}
+      </tbody></table></div>
+      <div style="margin-top:16px">
+        <button class="boton secundario chico" id="b-sin-soporte" type="button"${sinSoporte.length ? '' : ' disabled'}>
+          Descargar las ${sinSoporte.length} empresas sin soporte (CSV)
+        </button>
+      </div>`;
+    const b = $('b-sin-soporte');
+    if (b) b.onclick = () => descargarSinSoporte(sinSoporte);
+  }
+
+  function descargarSinSoporte(lista) {
+    const cab = ['id', 'empresa', 'entrevistador', 'estado_verificado', 'declarado_contacto',
+                 'clasificacion_ccc', 'macrosector'];
+    const celda = (v) => {
+      const s = String(v == null ? '' : v);
+      return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const filas = lista
+      .sort((a, b) => String(a.persona).localeCompare(String(b.persona)) || String(a.id).localeCompare(String(b.id)))
+      .map((e) => [e.id, e.empresa || '', NOMBRE_PERSONA[e.persona] || e.persona || '',
+                   ETIQUETA[(e.verificado || {}).estado_verificado] || '',
+                   (e.declarado || {}).contacto || '', e.clasificacion_ccc || '', e.macrosector || '']);
+    // BOM para que Excel en Windows no rompa las tildes, y ';' porque en configuración regional
+    // en español la coma es el separador decimal y Excel mete todo en una sola columna.
+    const csv = '﻿' + [cab, ...filas].map((f) => f.map(celda).join(';')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `empresas_sin_soporte_${DATOS.fecha_corrida || 'hoy'}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   // ---------- Avance de contacto efectivo por entrevistador (grilla 2x2) ----------
