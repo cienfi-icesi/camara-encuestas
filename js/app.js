@@ -444,6 +444,10 @@
   // viaja en el paquete de cienfi. Se agrupa por KAM porque la pregunta de fondo no es cuántas
   // empresas hay, sino si abrir la puerta por un KAM está sirviendo: el estado de gestión va
   // al lado con las mismas categorías del resto del tablero.
+  // Filtros de la pestaña KAM. Viven fuera de la función porque `render()` la vuelve a llamar
+  // en cada repintado (cambio de persona, recarga de datos) y el filtro tiene que sobrevivir.
+  let KAM_F = { kam: '', persona: '', cat: '', q: '' };
+
   function renderKam() {
     const cont = $('t-kam');
     const conKam = (DATOS.empresas || []).filter((e) => e.kam);
@@ -456,34 +460,81 @@
       return s === 'contacto_efectivo_si' || s === 'contacto_efectivo_no' || s === 'respondio_sin_decision';
     }).length;
     const nombres = Object.keys(porKam).sort((a, b) => porKam[b].length - porKam[a].length);
+    const personas = [...new Set(conKam.map((e) => e.persona))].filter(Boolean).sort();
+    const cats = CATEGORIAS.filter((c) => conKam.some((e) => categoria(e) === c));
 
+    // El resumen por KAM NO se filtra: es el marco de referencia contra el que se lee el
+    // detalle. Si también se recortara, filtrar por "aceptaron" dejaría un resumen donde
+    // todos los KAM aciertan el 100%, que es justo la lectura equivocada.
     const resumen = `<div class="tabla-wrap"><table class="tabla">
-      <thead><tr><th>KAM</th><th>Empresas</th><th>Con respuesta</th><th>Aceptaron</th></tr></thead>
+      <thead><tr><th>KAM</th><th class="num">Empresas</th><th class="num">Con respuesta</th><th class="num">Aceptaron</th></tr></thead>
       <tbody>${nombres.map((k) => {
         const arr = porKam[k];
         const si = arr.filter((e) => (e.verificado || {}).estado_verificado === 'contacto_efectivo_si').length;
-        return `<tr><td><b>${esc(k)}</b></td><td>${arr.length}</td><td>${efectivas(arr)}</td><td>${si}</td></tr>`;
+        return `<tr><td><b>${esc(k)}</b></td><td class="num">${arr.length}</td><td class="num">${efectivas(arr)}</td><td class="num">${si}</td></tr>`;
       }).join('')}
-      <tr><td><b>Total</b></td><td><b>${conKam.length}</b></td><td><b>${efectivas(conKam)}</b></td>
-          <td><b>${conKam.filter((e) => (e.verificado || {}).estado_verificado === 'contacto_efectivo_si').length}</b></td></tr>
+      <tr class="fila-total"><td><b>Total</b></td><td class="num"><b>${conKam.length}</b></td>
+          <td class="num"><b>${efectivas(conKam)}</b></td>
+          <td class="num"><b>${conKam.filter((e) => (e.verificado || {}).estado_verificado === 'contacto_efectivo_si').length}</b></td></tr>
       </tbody></table></div>`;
 
-    const filas = nombres.map((k) => porKam[k]
-      .sort((a, b) => String(a.empresa).localeCompare(String(b.empresa)))
-      .map((e, i) => {
+    const opciones = (lista, sel, etiq) => lista.map((v) =>
+      `<option value="${esc(v)}"${v === sel ? ' selected' : ''}>${esc(etiq ? etiq(v) : v)}</option>`).join('');
+
+    cont.innerHTML = resumen + `
+      <div class="filtros tabla-cob" style="margin-top:20px">
+        <div><label for="fk-buscar">Buscar</label>
+          <input id="fk-buscar" placeholder="empresa o id" value="${esc(KAM_F.q)}"></div>
+        <div><label for="fk-kam">KAM</label><select id="fk-kam">
+          <option value="">Todos</option>${opciones(nombres, KAM_F.kam)}</select></div>
+        <div><label for="fk-persona">Entrevistador</label><select id="fk-persona">
+          <option value="">Todos</option>${opciones(personas, KAM_F.persona, (p) => NOMBRE_PERSONA[p] || p)}</select></div>
+        <div><label for="fk-cat">Estado</label><select id="fk-cat">
+          <option value="">Todos</option>${opciones(cats, KAM_F.cat, (c) => ETIQUETA_CAT[c])}</select></div>
+      </div>
+      <div id="t-kam-detalle"></div>`;
+
+    const leer = () => {
+      KAM_F = { q: $('fk-buscar').value.trim(), kam: $('fk-kam').value,
+                persona: $('fk-persona').value, cat: $('fk-cat').value };
+      pintarKamDetalle(conKam);
+    };
+    ['fk-kam', 'fk-persona', 'fk-cat'].forEach((id) => { $(id).onchange = leer; });
+    $('fk-buscar').oninput = leer;
+    pintarKamDetalle(conKam);
+  }
+
+  function pintarKamDetalle(conKam) {
+    const q = KAM_F.q.toLowerCase();
+    const filtradas = conKam.filter((e) =>
+      (!KAM_F.kam || e.kam === KAM_F.kam) &&
+      (!KAM_F.persona || e.persona === KAM_F.persona) &&
+      (!KAM_F.cat || categoria(e) === KAM_F.cat) &&
+      (!q || String(e.empresa || '').toLowerCase().includes(q) || String(e.id).toLowerCase().includes(q)));
+
+    const cont = $('t-kam-detalle');
+    if (!filtradas.length) { cont.innerHTML = vacio('Ninguna empresa con esos filtros.'); return; }
+
+    // Se ordena por KAM y dentro por empresa; el nombre del KAM solo se escribe cuando cambia,
+    // para que el bloque se lea como una agrupación y no como una columna repetida.
+    const filas = filtradas
+      .sort((a, b) => String(a.kam).localeCompare(String(b.kam)) || String(a.empresa).localeCompare(String(b.empresa)))
+      .map((e, i, arr) => {
         const cat = categoria(e);
+        const nuevo = i === 0 || arr[i - 1].kam !== e.kam;
         return `<tr>
-          <td>${i === 0 ? `<b>${esc(k)}</b>` : ''}</td>
+          <td>${nuevo ? `<b>${esc(e.kam)}</b>` : ''}</td>
           <td>${esc(e.id)}</td>
           <td>${esc(e.empresa || '')}</td>
           <td>${esc(NOMBRE_PERSONA[e.persona] || e.persona || '')}</td>
           <td><span class="chip" style="background:${COLOR_CAT[cat]}">${esc(ETIQUETA_CAT[cat])}</span></td>
         </tr>`;
-      }).join('')).join('');
+      }).join('');
 
-    cont.innerHTML = resumen + `<div class="tabla-wrap" style="margin-top:18px"><table class="tabla">
-      <thead><tr><th>KAM</th><th>id</th><th>Empresa</th><th>Entrevistador</th><th>Estado</th></tr></thead>
-      <tbody>${filas}</tbody></table></div>`;
+    cont.innerHTML = `<p class="ayuda">${filtradas.length} de ${conKam.length} empresas.</p>
+      <div class="tabla-wrap"><table class="tabla">
+        <thead><tr><th>KAM</th><th>id</th><th>Empresa</th><th>Entrevistador</th><th>Estado</th></tr></thead>
+        <tbody>${filas}</tbody></table></div>`;
   }
 
   // ---------- Cobertura de soportes por entrevistador ----------
