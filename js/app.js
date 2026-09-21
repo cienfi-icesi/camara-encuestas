@@ -134,6 +134,12 @@
     while (!esHabil(d)) d.setDate(d.getDate() - 1);
     return d;
   }
+  // Lunes (ISO) de la semana del último día hábil a fecha de hoy. En fin de semana o festivo
+  // devuelve la semana que acaba de terminar, igual que agenda.agenda_semana en el servidor.
+  function lunesSemanaEnCurso() {
+    const d = ultimoHabil(new Date());
+    return iso(new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() - 1)));
+  }
   const DIAS_SEM = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
   function fmtDiaFecha(isoStr) {
     if (!isoStr) return '—';
@@ -1340,7 +1346,13 @@
     //    sobre el reparto por medio, no solo sobre la tabla de cumplimiento (pedido de Eduard,
     //    2026-08-31). 'todo' devuelve la vista acumulada desde el inicio del proyecto.
     const metas = c.metas || { contactos_efectivos_dia: 5, agendadas_semana: 3, dias_habiles_semana: 5 };
-    const semanaActual = (c.semana || [])[0] || null;   // lunes de la semana hábil en curso
+    // Lunes de la semana hábil en curso, calculado con el reloj de QUIEN MIRA, no con el de la
+    // corrida. Antes salía de `c.semana`, que fija el servidor al correr: con la corrida a las
+    // 18:00, el lunes por la mañana el tablero todavía traía los datos del viernes, así que
+    // creía que la semana en curso era la anterior y rotulaba la actual como «próxima»
+    // (visto el 2026-09-21). Misma regla que agenda.agenda_semana: el último día hábil manda,
+    // y en fin de semana se ve la semana que acaba de terminar.
+    const semanaActual = lunesSemanaEnCurso();
     const semanas = semanasDisponibles(pp, personas, semanaActual);
     if (SEMANA === null || (SEMANA !== 'todo' && !semanas.includes(SEMANA))) {
       SEMANA = semanaActual || semanas[0] || 'todo';
