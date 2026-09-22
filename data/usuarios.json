@@ -9,10 +9,6 @@
    "rol": "encuestador"
   },
   {
-   "usuario": "angela-bacca",
-   "rol": "encuestador"
-  },
-  {
    "usuario": "admin",
    "rol": "admin"
   },
@@ -25,12 +21,12 @@
    "rol": "cienfi"
   }
  ],
- "fecha_corrida": "2026-09-21",
- "generado_en": "2026-09-21T20:28:42-05:00",
- "actualizado_en": "2026-09-21T20:28:42-05:00",
- "sello": "fe7c9d7d19c3",
- "publicado_en": "2026-09-21T20:28:50-05:00",
- "modo_modelo": 658,
- "modo_heuristico": 0,
+ "fecha_corrida": "2026-09-22",
+ "generado_en": "2026-09-22T11:25:25-05:00",
+ "actualizado_en": "2026-09-22T11:25:25-05:00",
+ "sello": "77fd34814e12",
+ "publicado_en": "2026-09-22T11:26:03-05:00",
+ "modo_modelo": 645,
+ "modo_heuristico": 13,
  "modelo": "sonnet"
 }
