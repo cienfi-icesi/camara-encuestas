@@ -79,7 +79,7 @@
   // esto cubre las filas sueltas que imprimen el nombre a partir del campo de la empresa.
   const PERSONAS_RETIRADAS = new Set(['Angela']);
   const NOMBRE_PERSONA = { Diana: 'Diana', Leonardo: 'Leonardo', Angela: 'Ángela' };
-  const nomPersona = (p) => (PERSONAS_RETIRADAS.has(p) ? 'Sin responsable' : (nomPersona(p) || ''));
+  const nomPersona = (p) => (PERSONAS_RETIRADAS.has(p) ? 'Sin responsable' : (NOMBRE_PERSONA[p] || p || ''));
   const POR_PAGINA = 50;
 
   // Texto de modo a partir de la COMPOSICIÓN real de los veredictos (modo_modelo/modo_heuristico),
