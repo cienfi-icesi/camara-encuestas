@@ -72,7 +72,14 @@
     if (s === 'intento_sin_respuesta' || s === 'solo_correo') return 'intento';
     return 'sin_gestion';
   }
+  // Quien ya no está en el proyecto: su nombre no se muestra en ninguna fila. Las empresas
+  // siguen ahí y siguen contando en los totales — lo que ya no existe es la persona como
+  // responsable, así que la etiqueta honesta es que esas empresas no tienen responsable.
+  // El paquete ya no la trae en `personas`, así que no genera pestaña ni tarjeta propia;
+  // esto cubre las filas sueltas que imprimen el nombre a partir del campo de la empresa.
+  const PERSONAS_RETIRADAS = new Set(['Angela']);
   const NOMBRE_PERSONA = { Diana: 'Diana', Leonardo: 'Leonardo', Angela: 'Ángela' };
+  const nomPersona = (p) => (PERSONAS_RETIRADAS.has(p) ? 'Sin responsable' : (nomPersona(p) || ''));
   const POR_PAGINA = 50;
 
   // Texto de modo a partir de la COMPOSICIÓN real de los veredictos (modo_modelo/modo_heuristico),
@@ -111,7 +118,6 @@
     // Exclusiva del perfil interno de CIENFI: el paquete de `admin` ni siquiera trae los
     // datos de proyección, así que un usuario de Cámara no puede ver ni deducir esta pestaña.
     { k: 'proyeccion', t: 'Proyección de meta', soloCienfi: true },
-    { k: 'bitacora', t: 'Bitácora' },
   ];
   // `cienfi` hereda todo lo de `admin` y suma lo suyo.
   const esAdmin = () => DATOS && (DATOS.rol === 'admin' || DATOS.rol === 'cienfi');
@@ -240,7 +246,7 @@
     if (esAdmin()) {
       ['TODAS'].concat(personas).forEach((p) => {
         const b = document.createElement('button'); b.type = 'button'; b.className = 'tab' + (p === PERSONA ? ' activa' : '');
-        b.textContent = p === 'TODAS' ? 'Todo el equipo' : NOMBRE_PERSONA[p] || p;
+        b.textContent = p === 'TODAS' ? 'Todo el equipo' : nomPersona(p);
         b.addEventListener('click', () => { PERSONA = p; pagina = 1; abierta = null; tabs.querySelectorAll('.tab').forEach((t) => t.classList.remove('activa')); b.classList.add('activa'); render(); });
         tabs.appendChild(b);
       });
@@ -303,7 +309,7 @@
 
   function render() {
     const r = resumenActivo();
-    const quien = PERSONA === 'TODAS' ? 'Todo el equipo' : (NOMBRE_PERSONA[PERSONA] || PERSONA);
+    const quien = PERSONA === 'TODAS' ? 'Todo el equipo' : (nomPersona(PERSONA));
     $('t-titulo').textContent = `Tablero de ${quien}`;
     renderCabecera();
     $('t-aviso').classList.add('oculto');
@@ -320,7 +326,6 @@
     else if (SECCION === 'cobertura') renderCobertura();
     else if (SECCION === 'comparacion') renderComparacion();
     else if (SECCION === 'proyeccion') renderProyeccion();
-    else if (SECCION === 'bitacora') renderBitacora();
   }
 
   // Fecha, hora y sello de la corrida + aviso si los datos no son del último día hábil.
@@ -466,7 +471,8 @@
       return s === 'contacto_efectivo_si' || s === 'contacto_efectivo_no' || s === 'respondio_sin_decision';
     }).length;
     const nombres = Object.keys(porKam).sort((a, b) => porKam[b].length - porKam[a].length);
-    const personas = [...new Set(conKam.map((e) => e.persona))].filter(Boolean).sort();
+    const personas = [...new Set(conKam.map((e) => e.persona))]
+      .filter((p) => p && !PERSONAS_RETIRADAS.has(p)).sort();
     const cats = CATEGORIAS.filter((c) => conKam.some((e) => categoria(e) === c));
 
     // El resumen por KAM NO se filtra: es el marco de referencia contra el que se lee el
@@ -494,7 +500,7 @@
         <div><label for="fk-kam">KAM</label><select id="fk-kam">
           <option value="">Todos</option>${opciones(nombres, KAM_F.kam)}</select></div>
         <div><label for="fk-persona">Entrevistador</label><select id="fk-persona">
-          <option value="">Todos</option>${opciones(personas, KAM_F.persona, (p) => NOMBRE_PERSONA[p] || p)}</select></div>
+          <option value="">Todos</option>${opciones(personas, KAM_F.persona, (p) => nomPersona(p))}</select></div>
         <div><label for="fk-cat">Estado</label><select id="fk-cat">
           <option value="">Todos</option>${opciones(cats, KAM_F.cat, (c) => ETIQUETA_CAT[c])}</select></div>
       </div>
@@ -532,7 +538,7 @@
           <td>${nuevo ? `<b>${esc(e.kam)}</b>` : ''}</td>
           <td>${esc(e.id)}</td>
           <td>${esc(e.empresa || '')}</td>
-          <td>${esc(NOMBRE_PERSONA[e.persona] || e.persona || '')}</td>
+          <td>${esc(nomPersona(e.persona))}</td>
           <td><span class="chip" style="background:${COLOR_CAT[cat]}">${esc(ETIQUETA_CAT[cat])}</span></td>
         </tr>`;
       }).join('');
@@ -572,7 +578,7 @@
       <thead><tr><th>Entrevistador</th><th class="num">Asignadas</th><th class="num">Con soporte</th>
         <th class="num">Sin ningún soporte</th><th>Cobertura</th></tr></thead>
       <tbody>
-        ${personas.map((p) => fila(esc(NOMBRE_PERSONA[p] || p), emp.filter((e) => e.persona === p))).join('')}
+        ${personas.map((p) => fila(esc(nomPersona(p)), emp.filter((e) => e.persona === p))).join('')}
         ${fila('<b>Total</b>', emp, 'fila-total')}
       </tbody></table></div>
       <div style="margin-top:16px">
@@ -593,7 +599,7 @@
     };
     const filas = lista
       .sort((a, b) => String(a.persona).localeCompare(String(b.persona)) || String(a.id).localeCompare(String(b.id)))
-      .map((e) => [e.id, e.empresa || '', NOMBRE_PERSONA[e.persona] || e.persona || '',
+      .map((e) => [e.id, e.empresa || '', nomPersona(e.persona),
                    ETIQUETA[(e.verificado || {}).estado_verificado] || '',
                    (e.declarado || {}).contacto || '', e.clasificacion_ccc || '', e.macrosector || '']);
     // BOM para que Excel en Windows no rompa las tildes, y ';' porque en configuración regional
@@ -628,7 +634,7 @@
         ['contacto_efectivo_no', no, 'no participan'],
       ];
       return `<div class="card-avance">
-        <h3>${esc(NOMBRE_PERSONA[p] || p)}</h3>
+        <h3>${esc(nomPersona(p))}</h3>
         <div class="sub">${total} empresas asignadas · ${pct}% con gestión efectiva</div>
         <div class="big">${efe} <span class="de">de ${total}</span></div>
         <div class="prog">
@@ -711,19 +717,21 @@
       { rot: 'Encuestas', val: p.diligenciadas, nota: `${p.terminadas} terminadas · ${p.en_curso} en curso`, color: COLOR.contacto_efectivo_si },
       { rot: 'Meta del estudio', val: p.meta, nota: `al ${fmtFecha(p.fecha_meta)}`, color: 'var(--azul)' },
       { rot: 'Faltan', val: p.faltan, nota: `${p.porcentaje}% de cumplimiento`, color: 'var(--e-int, #C0562F)' },
-      { rot: 'Semanas restantes', val: p.semanas_restantes, nota: `${p.ritmo_necesario_semanal}/semana necesarias`, color: 'var(--tinta)' },
+      { rot: 'Semanas restantes', val: p.semanas_restantes, nota: `hasta el ${fmtFecha(p.fecha_meta)}`, color: 'var(--tinta)' },
     ];
 
+    // El ritmo que hay que sostener de aquí al cierre, repartido entre quienes siguen en
+    // campo. Antes había una tabla de ocho columnas por entrevistador (meta acumulada,
+    // diferencia, proyección, ritmo reciente...) que Eduard pidió quitar el 2026-09-22: era
+    // mucha cifra para responder una sola pregunta, que es cuántas encuestas por semana le
+    // tocan a cada quien ahora que son tres.
+    const nPersonas = Object.keys(p.por_persona || {}).length || 1;
+    const porPersona = Math.ceil(p.ritmo_necesario_semanal / nPersonas);
     const filasPersona = Object.entries(p.por_persona || {}).map(([nom, d]) => `
       <tr>
-        <td><b>${esc(NOMBRE_PERSONA[nom] || nom)}</b><div class="nota">desde ${fmtFecha(d.inicio)} · ${d.semanas_en_campo} sem.${d.meta_semanal_fija ? ` · meta fija ${d.meta_semanal_fija}/sem` : ''}</div></td>
-        <td>${d.realizadas}<div class="nota">${d.terminadas} terminadas</div></td>
-        <td>${d.agendadas_futuras ? `<b>${d.realizadas_con_agendadas}</b><div class="nota">+${d.agendadas_futuras} agendada${d.agendadas_futuras > 1 ? 's' : ''}</div>` : `<span class="nota">${d.realizadas}</span>`}</td>
-        <td>${d.meta_acumulada}</td>
-        <td><span class="semaforo ${d.semaforo}" style="padding:2px 9px;font-size:12px">${signo(d.diferencia)}</span></td>
-        <td><b>${d.meta_proxima_semana}</b></td>
-        <td>${d.ritmo_necesario_semanal}<div class="nota">ritmo actual ${d.ritmo_reciente_semanal}</div></td>
-        <td>${d.proyectado_cierre}<div class="nota">de ${d.cuota}</div></td>
+        <td class="empresa">${esc(nomPersona(nom))}</td>
+        <td>${d.realizadas}${d.agendadas_futuras ? `<div class="nota">+${d.agendadas_futuras} agendada${d.agendadas_futuras > 1 ? 's' : ''}</div>` : ''}</td>
+        <td><b>${porPersona}</b></td>
       </tr>`).join('');
 
     cont.innerHTML = `
@@ -787,7 +795,7 @@
             <tbody>${(p.agendadas.detalle || []).map((a) => `<tr>
               <td>${fmtFecha(a.fecha)}</td>
               <td><b>${esc(a.empresa || '')}</b><div class="nota">${esc(a.id || '')}</div></td>
-              <td>${esc(NOMBRE_PERSONA[a.persona] || a.persona || '')}</td>
+              <td>${esc(nomPersona(a.persona))}</td>
               <td>${a.modalidad ? esc(a.modalidad) : '<span class="nota">sin definir</span>'}</td>
             </tr>`).join('')}</tbody>
           </table>
@@ -799,12 +807,6 @@
         <p class="ayuda">Acumulado real semana a semana frente a la línea que llevaría a ${p.meta} en la fecha de cierre.</p>
         ${grafTrayectoria(p)}
         <div class="proy-kpis" style="margin-top:16px">
-          <div class="proy-kpi" style="border-top-color:var(--gris-claro)">
-            <div class="rot">Avance esperado hoy</div><div class="val">${p.esperado_hoy}</div><div class="nota">según la línea recta</div>
-          </div>
-          <div class="proy-kpi" style="border-top-color:${COLOR.contacto_efectivo_si}">
-            <div class="rot">Avance real</div><div class="val">${p.diligenciadas}</div><div class="nota">encuestas iniciadas</div>
-          </div>
           <div class="proy-kpi" style="border-top-color:${p.diferencia < 0 ? 'var(--e-sin, #B3261E)' : COLOR.contacto_efectivo_si}">
             <div class="rot">Diferencia</div><div class="val">${signo(p.diferencia)}</div><div class="nota">${p.diferencia < 0 ? 'por debajo de la línea' : 'sobre la línea'}</div>
           </div>
@@ -815,17 +817,17 @@
       </div>
 
       <div class="tarjeta">
-        <h2>Meta recalculada por entrevistador</h2>
-        <p class="ayuda">La meta acumulada se prorratea según el tiempo que cada quien lleva en campo. La meta semanal
-          se reparte <b>pareja</b> entre las ${p.semanas_restantes} semanas restantes, con un techo de
-          ${p.techo_semanal} por persona: nadie carga el rezago de otro. Si una semana queda corta, el faltante se
-          redistribuye solo en la siguiente corrida.</p>
-        <div class="tabla-wrap">
-          <table class="tabla">
-            <thead><tr>
-              <th>Entrevistador</th><th>Encuestas</th><th>Con agendadas</th><th>Meta acumulada</th><th>Diferencia</th>
-              <th>Próxima semana</th><th>Ritmo necesario</th><th>Proyección</th>
-            </tr></thead>
+        <h2>A qué ritmo hay que ir</h2>
+        <p class="ayuda">Lo que queda, repartido entre las semanas y las personas que quedan.</p>
+        <div class="proy-mensaje" style="font-size:15px;line-height:1.7">
+          Faltan <b>${p.faltan}</b> encuestas y quedan <b>${p.semanas_restantes}</b> semanas.
+          El equipo tiene que hacer <b>${Math.ceil(p.ritmo_necesario_semanal)} por semana</b>
+          — con ${nPersonas} encuestadores, <b>${porPersona} por persona a la semana</b>.
+          Hoy el equipo va a ${p.ritmo_reciente_semanal} por semana.
+        </div>
+        <div class="tabla-wrap" style="margin-top:14px">
+          <table class="compacta">
+            <thead><tr><th>Entrevistador</th><th>Encuestas hasta hoy</th><th>Por semana de aquí al cierre</th></tr></thead>
             <tbody>${filasPersona}</tbody>
           </table>
         </div>
@@ -952,7 +954,7 @@
     const filas = personas.map((p) => {
       const e = (DATOS.resumen[p] || {}).encuestas || {};
       const dilig = e.diligenciadas != null ? e.diligenciadas : (e.completas || 0);
-      return { nombre: NOMBRE_PERSONA[p] || p, realizadas: e.realizadas || 0, diligenciadas: dilig,
+      return { nombre: nomPersona(p), realizadas: e.realizadas || 0, diligenciadas: dilig,
                completas: e.completas || 0, en_curso: e.en_curso != null ? e.en_curso : (e.realizadas || 0) - dilig,
                autodiligenciadas: e.autodiligenciadas || 0 };
     });
@@ -996,7 +998,7 @@
     if (!p.hoy.length) { $('t-hoy').innerHTML = '<li class="vacio">Sin empresas priorizadas.</li>'; return; }
     $('t-hoy').innerHTML = p.hoy.map((x, i) => `<li>
       <span class="num ${x.motivo === 'arrastrada' ? 'arrastrada' : ''}" title="${x.motivo === 'arrastrada' ? 'Vuelve a salir: ayer no quedó evidencia' : 'Nueva'}">${i + 1}</span>
-      <div><div class="empresa">${esc(x.empresa)} <span style="color:#88898C;font-weight:400">· id ${x.id}${x.persona ? ' · ' + (NOMBRE_PERSONA[x.persona] || x.persona) : ''}</span></div>
+      <div><div class="empresa">${esc(x.empresa)} <span style="color:#88898C;font-weight:400">· id ${x.id}${x.persona ? ' · ' + (nomPersona(x.persona)) : ''}</span></div>
       <div class="sub"><span class="chip ${x.estado}">${ETIQUETA[x.estado] || x.estado}</span>${x.motivo === 'arrastrada' ? ' · vuelve a salir (sin evidencia de intento)' : ''}${x.veces_priorizada > 1 ? ' · en lista ' + x.veces_priorizada + ' veces' : ''}</div>
       <div class="paso">${esc(x.siguiente_paso || '')}</div></div></li>`).join('');
   }
@@ -1006,7 +1008,7 @@
     if (!p.seguimientos.length) { $('t-seguimientos').innerHTML = '<li class="vacio">Nada vence hoy.</li>'; return; }
     $('t-seguimientos').innerHTML = p.seguimientos.map((s) => `<li>
       <span class="num">↺</span>
-      <div><div class="empresa">${esc(s.empresa)} <span style="color:#88898C;font-weight:400">· id ${s.id}${s.persona ? ' · ' + (NOMBRE_PERSONA[s.persona] || s.persona) : ''}</span></div>
+      <div><div class="empresa">${esc(s.empresa)} <span style="color:#88898C;font-weight:400">· id ${s.id}${s.persona ? ' · ' + (nomPersona(s.persona)) : ''}</span></div>
       <div class="sub">vence ${fmtFecha(s.fecha_recordatorio)}${s.dias_vencido > 0 ? ' · hace ' + s.dias_vencido + ' día(s)' : ' · hoy'}</div>
       <div class="paso">${esc(s.siguiente_paso || s.resumen || '')}</div></div></li>`).join('');
   }
@@ -1090,7 +1092,7 @@
       const v = e.verificado;
       const fila = `<tr class="fila" data-id="${e.id}">
         <td class="mono">${e.id}</td>
-        <td><b>${esc(e.empresa)}</b>${PERSONA === 'TODAS' ? `<div style="font-size:12px;color:#88898C">${NOMBRE_PERSONA[e.persona] || e.persona}</div>` : ''}${e.override ? ' <span class="chip gris" title="corregido a mano">override</span>' : ''}</td>
+        <td><b>${esc(e.empresa)}</b>${PERSONA === 'TODAS' ? `<div style="font-size:12px;color:#88898C">${nomPersona(e.persona)}</div>` : ''}${e.override ? ' <span class="chip gris" title="corregido a mano">override</span>' : ''}</td>
         <td><span class="chip" style="background:${COLOR_CAT[categoria(e)]}">${ETIQUETA_CAT[categoria(e)]}</span></td>
         <td>${esc(e.declarado.contacto || '—')}${e.declarado.n_llamadas != null ? ` <span style="color:#88898C">· ${e.declarado.n_llamadas} llam.</span>` : ''}${v.coincide_con_declarado === false ? ' <span class="discrepancia" title="declarado ≠ evidencia">≠</span>' : ''}</td>
         <td>${fmtFecha(v.fecha_ultima_gestion)}</td>
@@ -1101,7 +1103,7 @@
       return fila + `<tr class="detalle"><td colspan="6"><div class="detalle-grid">
         ${enc && enc.diligenciada ? `<div style="grid-column:1/-1;background:#EAF5EE;border-radius:6px;padding:8px 10px;color:#0F5C2E">
            <b>Encuesta diligenciada</b> (${enc.porcentaje}%${enc.completa ? ', los 4 módulos' : ', con un módulo justificado como no aplicable'})
-           ${enc.autodiligenciada ? '· la respondió la empresa por su cuenta' : (enc.aplicada_por ? `· la aplicó ${esc(NOMBRE_PERSONA[enc.aplicada_por] || enc.aplicada_por)}` : '')}
+           ${enc.autodiligenciada ? '· la respondió la empresa por su cuenta' : (enc.aplicada_por && !PERSONAS_RETIRADAS.has(enc.aplicada_por) ? `· la aplicó ${esc(nomPersona(enc.aplicada_por))}` : '')}
            ${enc.ultima_modificacion ? `· ${fmtFecha(enc.ultima_modificacion)}` : ''}. Por eso cuenta como contacto efectivo.
            ${v.ajuste_encuesta ? ` Antes de la encuesta, la evidencia documental por sí sola indicaba: <i>${esc(ETIQUETA[v.ajuste_encuesta.estado_agente] || v.ajuste_encuesta.estado_agente)}</i>.` : ''}
          </div>` : ''}
@@ -1170,7 +1172,7 @@
       // que alguien lea "Sin determinar" como "el encuestador no hizo nada".
       const derivadas = (b.empresas || []).filter((f) => f.origen === 'evidencia').length;
       return `<div class="gestion-persona">
-        <h3>${esc(NOMBRE_PERSONA[p] || p)}</h3>
+        <h3>${esc(nomPersona(p))}</h3>
         <div class="cifras">
           <span><b>${r.n_empresas}</b> empresas gestionadas</span>
           <span><b>${r.n_gestiones}</b> gestiones</span>
@@ -1216,7 +1218,7 @@
       <td><b>${esc(fmtFecha(f.fecha))}</b>${f.fecha === hoyIso ? '<div class="nota">hoy</div>' : ''}</td>
       <td>${esc(fmtHora(f.hora))}</td>
       <td><div class="empresa">${esc(f.empresa)}</div><div class="nota">id ${esc(f.id)}${f.modulos && f.modulos.length ? ' · módulos ' + esc(f.modulos.join(', ')) : ''}</div></td>
-      <td>${esc(NOMBRE_PERSONA[f.persona] || f.persona)}</td>
+      <td>${esc(nomPersona(f.persona))}</td>
       <td>${f.modalidad ? esc(f.modalidad === 'virtual' ? 'Virtual' : 'Presencial') : '<span style="color:var(--gris)">por definir</span>'}
           ${f.link ? `<div class="nota">tiene enlace de reunión</div>` : ''}
           ${f.origen === 'evidencia' ? `<div class="nota" title="La cita la detectó el agente en la relatoría o el correo, no está en el Excel">según la relatoría</div>` : ''}</td>
@@ -1275,7 +1277,7 @@
       const comp = (b.completadas || []).map((f) => `<li><b>${esc(f.empresa)}</b>
         <span style="color:var(--gris)">· id ${esc(f.id)} · ${f.porcentaje || 0}%${f.ultima_actividad ? ' · ' + esc(fmtFecha(f.ultima_actividad)) : ''}</span></li>`).join('');
       return `<div class="gestion-persona">
-        ${PERSONA === 'TODAS' ? `<h3>${esc(NOMBRE_PERSONA[p] || p)}</h3>` : ''}
+        ${PERSONA === 'TODAS' ? `<h3>${esc(nomPersona(p))}</h3>` : ''}
         <div class="cifras">
           <span><b>${r.con_avance}</b> con avance reciente</span>
           <span><b>${r.estancadas}</b> sin avanzar</span>
@@ -1289,13 +1291,13 @@
            </tr></thead><tbody>${filas}</tbody></table></div>`
           : vacio('Ninguna empresa con diligenciamiento autónomo pendiente.')}
         ${(b.incompletas_aplicadas || []).length ? `
-          <h3 style="font-size:14px;margin:20px 0 4px">Encuestas que ${PERSONA === 'TODAS' ? esc(NOMBRE_PERSONA[p] || p) + ' aplicó' : 'aplicaste'} y quedaron incompletas (${b.incompletas_aplicadas.length})</h3>
+          <h3 style="font-size:14px;margin:20px 0 4px">Encuestas que ${PERSONA === 'TODAS' ? esc(nomPersona(p)) + ' aplicó' : 'aplicaste'} y quedaron incompletas (${b.incompletas_aplicadas.length})</h3>
           <p class="ayuda">No son diligenciamiento autónomo: son entrevistas que quedaron a medias y también
             tienen módulos pendientes por cerrar.</p>
           <div class="tabla-wrap"><table class="compacta"><thead><tr>
             <th>Empresa</th><th>Avance</th><th>Módulos</th><th>Última actividad</th></tr></thead><tbody>
             ${b.incompletas_aplicadas.map((f) => `<tr>
-              <td><div class="empresa">${esc(f.empresa)}</div><div class="nota">id ${esc(f.id)}${f.persona_cartera && f.persona_cartera !== f.aplicada_por ? ' · cartera de ' + esc(NOMBRE_PERSONA[f.persona_cartera] || f.persona_cartera) : ''}</div></td>
+              <td><div class="empresa">${esc(f.empresa)}</div><div class="nota">id ${esc(f.id)}${f.persona_cartera && f.persona_cartera !== f.aplicada_por && !PERSONAS_RETIRADAS.has(f.persona_cartera) ? ' · cartera de ' + esc(nomPersona(f.persona_cartera)) : ''}</div></td>
               <td class="avance"><div class="barra-mini"><i style="width:${f.porcentaje || 0}%"></i></div><div class="pct">${f.porcentaje || 0}%</div></td>
               <td>${pildorasModulos(f.modulos_ok)}<div class="nota">faltan ${esc((f.modulos_pendientes || []).map((m) => NOMBRE_MODULO[m] || m).join(', '))}</div></td>
               <td>${f.ultima_actividad ? esc(fmtFecha(f.ultima_actividad)) : '—'}
@@ -1399,7 +1401,7 @@
         ${fila('Empresas que respondieron', b.efectivas)}
         ${fila('Solo correo, sin respuesta', b.solo_correo)}
         ${fila('Gestiones registradas', b.gestiones)}`;
-      return `<div class="comp-tarjeta"><h3>${esc(NOMBRE_PERSONA[p] || p)}</h3><dl>${cuerpo}</dl></div>`;
+      return `<div class="comp-tarjeta"><h3>${esc(nomPersona(p))}</h3><dl>${cuerpo}</dl></div>`;
     }).join('');
 
     // 2. Medios: en qué reparte cada quien su esfuerzo. También sigue el corte de la semana.
@@ -1412,53 +1414,23 @@
         .map(([k, n]) => `<span style="flex:${n};background:${COLOR_CANAL[k] || '#88898C'}" title="${esc(ETIQUETA_CANAL[k] || k)}: ${n} (${Math.round(100 * n / tot)}%)"></span>`).join('');
       return `<div style="margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
-          <b>${esc(NOMBRE_PERSONA[p] || p)}</b>
+          <b>${esc(nomPersona(p))}</b>
           <span style="color:var(--gris-oscuro)">${tot ? `más usado: ${esc(ETIQUETA_CANAL[top[0]] || top[0])}` : 'sin gestiones en este corte'}</span></div>
         <div class="barra-medios">${segs}</div></div>`;
     }).join('');
     const leyenda = mediosBarra.map((m) =>
       `<span class="li"><i style="background:${COLOR_CANAL[m] || '#88898C'}"></i>${esc(ETIQUETA_CANAL[m] || m)}</span>`).join('');
 
-    // 3. Tasa de respuesta por medio: una fila por persona, una columna por medio.
-    // Esta y las dos siguientes son SIEMPRE acumuladas: son razones sobre el universo de
-    // empresas de cada quien (¿de las que toqué por llamada, cuántas respondieron?), y una
-    // empresa tocada en marzo puede responder en agosto. Partirlas por semana daría un número
-    // que parece una tasa y no lo es.
-    const todosMedios = [...new Set(personas.flatMap((p) =>
-      Object.keys(pp[p].por_medio || {}).concat(Object.keys(pp[p].tasa_por_medio || {}))))];
-    // "Sin clasificar" no es un medio de contacto: una tasa de respuesta sobre él no significa
-    // nada. Se muestra en el reparto (es esfuerzo real) pero no en la comparación de medios.
-    const mediosTasa = todosMedios.filter((m) => m !== 'otro');
-    const tasas = `<div class="tabla-wrap"><table class="compacta"><thead><tr><th>Encuestador</th>
-      ${mediosTasa.map((m) => `<th>${esc(ETIQUETA_CANAL[m] || m)}</th>`).join('')}<th>Mejor medio</th></tr></thead><tbody>
-      ${personas.map((p) => {
-        const x = pp[p];
-        return `<tr><td class="empresa">${esc(NOMBRE_PERSONA[p] || p)}</td>${mediosTasa.map((m) => {
-          const t = (x.tasa_por_medio || {})[m];
-          if (!t) return '<td style="color:var(--gris)">—</td>';
-          const mejor = x.medio_mas_efectivo === m;
-          return `<td${mejor ? ' style="background:#EAF5EE"' : ''}><b>${t.tasa}%</b>
-            <div class="nota">${t.respondieron} de ${t.empresas}</div></td>`;
-        }).join('')}<td><b>${esc(ETIQUETA_CANAL[x.medio_mas_efectivo] || '—')}</b></td></tr>`;
-      }).join('')}</tbody></table></div>`;
-
-    // 4. Conversión: del contacto a la cita, y de la cita a la encuesta hecha.
-    const conv = `<div class="tabla-wrap"><table class="compacta"><thead><tr>
-      <th>Encuestador</th><th>Contactadas</th><th>→ Agendadas</th><th>Conversión</th>
-      <th>→ Con encuesta</th><th>Conversión</th></tr></thead><tbody>
-      ${personas.map((p) => { const x = pp[p]; return `<tr>
-        <td class="empresa">${esc(NOMBRE_PERSONA[p] || p)}</td>
-        <td>${x.empresas_gestionadas}</td><td>${x.entrevistas_agendadas}</td>
-        <td><b>${x.conversion_contacto_agendada}%</b></td>
-        <td>${x.agendadas_con_encuesta}</td>
-        <td><b>${x.conversion_agendada_realizada}%</b></td></tr>`; }).join('')}
-      </tbody></table></div>`;
+    // Aquí vivían dos tarjetas más: "Qué medio funciona mejor a cada uno" y "Del contacto a
+    // la encuesta". Se quitaron a pedido de Eduard (2026-09-22). Las dos eran razones sobre el
+    // universo completo, no seguían el filtro de semana y comparaban personas con universos
+    // distintos: se leían como un ranking de desempeño que los datos no sostienen.
 
     // 5. Cumplimiento contra la meta. Solo tiene sentido con una semana elegida: la meta es
     // semanal, así que sumar todo el proyecto contra "5 al día" no compara nada.
     const filaSemana = (p) => {
       const b = bloqueDe(p);
-      return `<tr><td class="empresa">${esc(NOMBRE_PERSONA[p] || p)}</td>
+      return `<tr><td class="empresa">${esc(nomPersona(p))}</td>
         <td>${b.empresas}</td>
         <td>${chipMeta(b.efectivas, metaContactos)}</td>
         <td>${chipMeta(b.agendadas, metas.agendadas_semana)}</td>
@@ -1501,19 +1473,6 @@
           correo mientras otro combina llamada y WhatsApp. "Sin clasificar" son relatorías que el modelo
           todavía no ha leído con el detalle nuevo: es gestión real, pero aún no se sabe por qué medio fue.</p>
         ${barras}<div class="leyenda" style="flex-direction:row;flex-wrap:wrap;gap:12px">${leyenda}</div></div>
-      <div class="tarjeta"><h2>Qué medio funciona mejor a cada uno <span class="nota" style="font-weight:400">· acumulado</span></h2>
-        <p class="ayuda">De las empresas tocadas por cada medio, cuántas respondieron. <b>No sigue el filtro de
-          semana</b>: es una razón sobre el universo completo de empresas de cada quien, y una empresa tocada en
-          marzo puede responder en agosto. Ojo: una empresa contactada por correo <i>y</i> por llamada cuenta en
-          las dos columnas, así que esto compara personas entre sí, no demuestra que un medio cause la respuesta.
-          En verde, el mejor medio de cada quien (mínimo 5 empresas).</p>
-        ${tasas}</div>
-      <div class="tarjeta"><h2>Del contacto a la encuesta <span class="nota" style="font-weight:400">· acumulado</span></h2>
-        <p class="ayuda">Dónde se pierde cada embudo: quién agenda mucho pero concreta poco, y al revés.
-          Tampoco sigue el filtro de semana, por lo mismo: el contacto y la encuesta casi nunca caen en la misma
-          semana. "Con encuesta" son las empresas <i>agendadas</i> que además terminaron el cuestionario; el total
-          de encuestas de cada uno es mayor, porque muchas se logran sin cita previa o las diligencia la empresa sola.</p>
-        ${conv}</div>
       <div class="tarjeta"><h2>Encuestas por encuestador <span class="nota" style="font-weight:400">· acumulado</span></h2>
         <p class="ayuda">Diligenciadas frente a las que siguen en curso.</p>
         ${svgEquipo()}</div>`;
@@ -1523,66 +1482,6 @@
     if (sel) sel.addEventListener('change', () => { SEMANA = sel.value; renderComparacion(); });
   }
 
-  // =================================================== bitácora diaria
-  function renderBitacora() {
-    const b = DATOS.bitacora || { dias: [] };
-    const sel = $('f-fecha');
-    if (!b.dias.length) {
-      sel.innerHTML = ''; $('t-bitacora').innerHTML = vacio('Todavía no hay días con gestión registrada.');
-      return;
-    }
-    if (sel.options.length !== b.dias.length) {
-      sel.innerHTML = b.dias.map((d) => `<option value="${esc(d.fecha)}">${esc(d.dia)}</option>`).join('');
-      sel.addEventListener('change', renderBitacora);
-    }
-    const dia = b.dias.find((d) => d.fecha === sel.value) || b.dias[0];
-    sel.value = dia.fecha;
-    $('t-bitacora').innerHTML = personasActivas().map((p) => {
-      const bloque = (dia.por_persona || {})[p];
-      if (!bloque) return '';
-      // Cinturón y tirantes: si algún día los datos y este código se desfasan otra vez, se ve
-      // un cero, no la palabra "undefined".
-      const r0 = bloque.resumen || {};
-      const r = new Proxy(r0, { get: (o, k) => (o[k] === undefined || o[k] === null ? 0 : o[k]) });
-      // Una empresa por fila: las que esa persona INTENTÓ contactar ese día, respondieran o no.
-      const filas = (bloque.empresas || []).map((f) => `<tr class="${f.efectivo ? '' : 'no-gestionada'}">
-        <td><div class="empresa">${esc(f.empresa)}</div>
-            <div class="nota">id ${esc(f.id)}${f.de_la_lista ? '' : ' · <b>por su cuenta</b>'}</div></td>
-        <td>${f.efectivo ? '<span class="chip" style="background:#147A3D">Respondió</span>'
-                         : '<span class="chip" style="background:#88898C">Sin respuesta</span>'}</td>
-        <td><div class="chips">${(f.medios || []).map((m) => `<span class="chip" style="background:${COLOR_CANAL[m] || '#88898C'}">${esc(ETIQUETA_CANAL[m] || m)}</span>`).join('') || '<span class="chip tenue">—</span>'}${
-            f.n_gestiones > 1 ? `<span class="chip tenue">${f.n_gestiones} intentos</span>` : ''}</div></td>
-        <td>${f.resultado ? `<span class="chip" style="background:${COLOR_RES[f.resultado] || '#88898C'}">${esc(ETIQUETA_RES[f.resultado] || f.resultado)}</span>` : '<span class="chip tenue">—</span>'}</td>
-        <td>${esc(f.observacion || '—')}</td>
-        <td>${esc(f.siguiente_accion || '—')}</td></tr>`).join('');
-      // Las propuestas que ese día no se tocaron. Ya no es una nota de incumplimiento: es la
-      // lista de lo que quedó pendiente y el agente sigue recomendando.
-      const pend = (bloque.sugeridas_sin_tocar || []).map((x) =>
-        `<li>${esc(x.empresa)} <span class="nota">(id ${esc(x.id)})</span></li>`).join('');
-      return `<div class="gestion-persona">
-        ${PERSONA === 'TODAS' ? `<h3>${esc(NOMBRE_PERSONA[p] || p)}</h3>` : ''}
-        <div class="bit-resumen">
-          <div><div class="v">${r.contactadas}</div><div class="e">Empresas intentadas</div></div>
-          <div><div class="v si">${r.efectivas}</div><div class="e">Respondieron</div></div>
-          <div><div class="v no">${r.sin_respuesta}</div><div class="e">Sin respuesta</div></div>
-          <div><div class="v">${r.gestiones}</div><div class="e">Intentos</div></div>
-          <div><div class="v">${r.entrevistas_agendadas}</div><div class="e">Citas logradas</div></div>
-        </div>
-        <p class="ayuda">Las empresas a las que esta persona le intentó llegar ese día, hayan respondido o no.
-          Salen de la evidencia fechada ese día, no de la lista sugerida: por eso aparecen también las que
-          buscó por su cuenta (${r.por_su_cuenta} de ${r.contactadas}; ${r.de_la_lista} venían de la lista del agente).
-          Una empresa con varios intentos el mismo día es <b>una sola fila</b>, con el mejor resultado del día.</p>
-        ${filas ? `<div class="tabla-wrap"><table class="compacta"><thead><tr>
-          <th>Empresa</th><th>¿Respondió?</th><th>Medio</th><th>Resultado</th><th>Observación</th><th>Siguiente acción</th>
-        </tr></thead><tbody>${filas}</tbody></table></div>`
-        : vacio('No quedó evidencia de gestión ese día.')}
-        ${pend ? `<h3 style="font-size:14px;margin:18px 0 4px">De la lista sugerida, quedaron sin tocar (${bloque.sugeridas_sin_tocar.length} de ${r.sugeridas})</h3>
-          <p class="ayuda">No es un reproche: puede que ese día hubiera algo más urgente. Se listan porque
-            siguen pendientes y el agente las vuelve a proponer.</p>
-          <ul style="margin:0;padding-left:18px;font-size:13.5px;columns:2">${pend}</ul>` : ''}
-      </div>`;
-    }).join('') || vacio('Sin gestión registrada para esa fecha.');
-  }
 
   document.addEventListener('DOMContentLoaded', inicio);
 })();
