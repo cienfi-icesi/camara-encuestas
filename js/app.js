@@ -142,9 +142,22 @@
   }
   // Lunes (ISO) de la semana del último día hábil a fecha de hoy. En fin de semana o festivo
   // devuelve la semana que acaba de terminar, igual que agenda.agenda_semana en el servidor.
+  const lunesDe = (d) => iso(new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() - 1)));
+  // Semana hábil "en curso": la MÁS ADELANTADA entre el reloj de quien mira y la fecha de la
+  // corrida. Las dos pueden ir por delante de la otra y cada caso rompía el rótulo:
+  //   - lunes 9am, datos del viernes: manda el reloj, si no la semana en curso salía «próxima»
+  //     (visto el 2026-09-21).
+  //   - domingo, corrida anclada al lunes siguiente: manda la corrida, si no el tablero seguía
+  //     situado en la semana que terminó mientras la agenda ya mostraba la que empieza
+  //     (visto el 2026-09-27).
   function lunesSemanaEnCurso() {
-    const d = ultimoHabil(new Date());
-    return iso(new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() - 1)));
+    const porReloj = lunesDe(ultimoHabil(new Date()));
+    const f = DATOS && DATOS.fecha_corrida;
+    if (!f) return porReloj;
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(f);
+    if (!m) return porReloj;
+    const porCorrida = lunesDe(ultimoHabil(new Date(+m[1], +m[2] - 1, +m[3])));
+    return porCorrida > porReloj ? porCorrida : porReloj;
   }
   const DIAS_SEM = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
   function fmtDiaFecha(isoStr) {
