@@ -756,7 +756,7 @@
         <td class="empresa">${esc(nomPersona(nom))}</td>
         <td>${d.realizadas}${d.agendadas_futuras ? `<div class="nota">+${d.agendadas_futuras} agendada${d.agendadas_futuras > 1 ? 's' : ''}</div>` : ''}</td>
         <td><b${corto ? ' style="color:var(--e-sin, #B3261E)"' : ''}>${ritmo != null ? ritmo : '—'}</b>${
-          d.ritmo_actual_semanal != null ? `<div class="nota">${d.ritmo_actual_semanal} en todo el campo</div>` : ''}</td>
+          d.ritmo_actual_semanal != null ? `<div class="nota">${d.ritmo_actual_semanal} promedio en ${d.semanas_en_campo} semanas</div>` : ''}</td>
         <td><b>${porPersona}</b></td>
       </tr>`;
     }).join('');
