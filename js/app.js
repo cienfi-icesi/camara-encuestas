@@ -738,14 +738,28 @@
     // diferencia, proyección, ritmo reciente...) que Eduard pidió quitar el 2026-09-22: era
     // mucha cifra para responder una sola pregunta, que es cuántas encuestas por semana le
     // tocan a cada quien ahora que son tres.
+    //
+    // De esa poda se fue también el ritmo POR PERSONA, y con él la única forma de saber quién
+    // sostiene el suyo: la tarjeta decía a qué velocidad va el equipo (7.5/semana) pero no a
+    // cuál va cada quien. Eduard lo pidió de vuelta el 2026-09-28. Vuelve una sola columna
+    // —las últimas 4 semanas, que es lo que compara con la meta— con el promedio de todo el
+    // campo como nota, no las ocho de antes.
     const nPersonas = Object.keys(p.por_persona || {}).length || 1;
     const porPersona = Math.ceil(p.ritmo_necesario_semanal / nPersonas);
-    const filasPersona = Object.entries(p.por_persona || {}).map(([nom, d]) => `
+    const filasPersona = Object.entries(p.por_persona || {}).map(([nom, d]) => {
+      const ritmo = d.ritmo_reciente_semanal;
+      // Rojo solo cuando el dato existe y se queda corto: un 0 legítimo también debe avisar,
+      // así que se compara contra null, no por falsy.
+      const corto = ritmo != null && ritmo < porPersona;
+      return `
       <tr>
         <td class="empresa">${esc(nomPersona(nom))}</td>
         <td>${d.realizadas}${d.agendadas_futuras ? `<div class="nota">+${d.agendadas_futuras} agendada${d.agendadas_futuras > 1 ? 's' : ''}</div>` : ''}</td>
+        <td><b${corto ? ' style="color:var(--e-sin, #B3261E)"' : ''}>${ritmo != null ? ritmo : '—'}</b>${
+          d.ritmo_actual_semanal != null ? `<div class="nota">${d.ritmo_actual_semanal} en todo el campo</div>` : ''}</td>
         <td><b>${porPersona}</b></td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
 
     cont.innerHTML = `
       <div class="tarjeta">
@@ -840,7 +854,7 @@
         </div>
         <div class="tabla-wrap" style="margin-top:14px">
           <table class="compacta">
-            <thead><tr><th>Entrevistador</th><th>Encuestas hasta hoy</th><th>Por semana de aquí al cierre</th></tr></thead>
+            <thead><tr><th>Entrevistador</th><th>Encuestas hasta hoy</th><th>Ritmo actual (últimas 4 semanas)</th><th>Por semana de aquí al cierre</th></tr></thead>
             <tbody>${filasPersona}</tbody>
           </table>
         </div>
