@@ -21,12 +21,12 @@
    "rol": "cienfi"
   }
  ],
- "fecha_corrida": "2026-09-28",
- "generado_en": "2026-09-27T18:15:07-05:00",
- "actualizado_en": "2026-09-27T18:15:07-05:00",
- "sello": "669b92b0c8fd",
- "publicado_en": "2026-09-27T18:15:12-05:00",
- "modo_modelo": 681,
- "modo_heuristico": 2,
+ "fecha_corrida": "2026-09-29",
+ "generado_en": "2026-09-29T07:58:26-05:00",
+ "actualizado_en": "2026-09-29T07:58:26-05:00",
+ "sello": "25722510bda2",
+ "publicado_en": "2026-09-29T07:58:34-05:00",
+ "modo_modelo": 684,
+ "modo_heuristico": 0,
  "modelo": "sonnet"
 }
