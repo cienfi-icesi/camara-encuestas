@@ -728,6 +728,7 @@
 
     const kpis = [
       { rot: 'Encuestas', val: p.diligenciadas, nota: `${p.terminadas} terminadas · ${p.en_curso} en curso`, color: COLOR.contacto_efectivo_si },
+      { rot: 'Deberías llevar hoy', val: p.esperado_hoy, nota: `según la trayectoria · vas ${signo(p.diferencia)}`, color: p.diferencia < 0 ? 'var(--e-sin, #B3261E)' : COLOR.contacto_efectivo_si },
       { rot: 'Meta del estudio', val: p.meta, nota: `al ${fmtFecha(p.fecha_meta)}`, color: 'var(--azul)' },
       { rot: 'Faltan', val: p.faltan, nota: `${p.porcentaje}% de cumplimiento`, color: 'var(--e-int, #C0562F)' },
       { rot: 'Semanas restantes', val: p.semanas_restantes, nota: `hasta el ${fmtFecha(p.fecha_meta)}`, color: 'var(--tinta)' },
