@@ -1347,7 +1347,14 @@
   // el valor por defecto es la semana en curso, no la más reciente del listado.
   function semanasDisponibles(pp, personas, semanaActual) {
     const ks = new Set(personas.flatMap((p) => Object.keys(pp[p].por_semana || {})));
-    if (semanaActual) ks.add(semanaActual);
+    if (semanaActual) {
+      ks.add(semanaActual);
+      // La PRÓXIMA semana siempre aparece, aunque tenga 0 citas: sirve para ver lo que ya
+      // está agendado para esos días (pedido de planeación). Si no hay nada, se ve en cero.
+      const prox = new Date(semanaActual + 'T12:00:00');
+      prox.setDate(prox.getDate() + 7);
+      ks.add(iso(prox));
+    }
     return [...ks].sort().reverse();
   }
 
