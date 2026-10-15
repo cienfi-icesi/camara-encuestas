@@ -694,10 +694,20 @@
     const esp = `M${x(0)},${y(0)} L${x(n - 1)},${y(p.meta)}`;
     const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(maxY * f));
     const hoyIdx = s.findIndex((d) => d.semana > (p.hoy_semana || '')) ;
+    // Marca vertical: la semana en que Fernando entró a campo (3er encuestador). Se lee de
+    // los datos (no se quema la fecha); se ubica en la semana de la serie >= su lunes de inicio.
+    const isoLunes = (dt) => { const o = new Date(dt); o.setDate(o.getDate() - ((o.getDay() + 6) % 7));
+      return `${o.getFullYear()}-${String(o.getMonth() + 1).padStart(2, '0')}-${String(o.getDate()).padStart(2, '0')}`; };
+    const ferIni = p.por_persona && p.por_persona.Fernando && p.por_persona.Fernando.inicio;
+    const ferIdx = ferIni ? s.findIndex((d) => d.semana >= isoLunes(new Date(ferIni + 'T00:00:00'))) : -1;
+    const ferMark = ferIdx > 0 ? `
+      <line x1="${x(ferIdx).toFixed(1)}" x2="${x(ferIdx).toFixed(1)}" y1="${MT}" y2="${H - MB}" stroke="var(--gris)" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.7"/>
+      <text x="${x(ferIdx).toFixed(1)}" y="${MT + 9}" text-anchor="middle" font-size="9.5" fill="var(--gris)">Entró Fernando</text>` : '';
     return `<svg class="proy-graf" viewBox="0 0 ${W} ${H}" role="img"
         aria-label="Avance acumulado de encuestas frente a la trayectoria esperada">
       ${ticks.map((t) => `<g><line x1="${ML}" x2="${W - MR}" y1="${y(t)}" y2="${y(t)}" stroke="var(--linea)" stroke-width="1"/>
         <text x="${ML - 7}" y="${y(t) + 4}" text-anchor="end" font-size="10.5" fill="var(--gris)">${t}</text></g>`).join('')}
+      ${ferMark}
       <path d="${esp}" fill="none" stroke="var(--gris-claro)" stroke-width="2" stroke-dasharray="6 5"/>
       ${agLinea ? `<path d="${agLinea}" fill="none" stroke="var(--azul)" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round"/>
       ${ptsAg.map((d) => `<circle cx="${x(d.i).toFixed(1)}" cy="${y(d.v).toFixed(1)}" r="2.4" fill="var(--azul)"/>`).join('')}` : ''}
