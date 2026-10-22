@@ -67,6 +67,11 @@
       // comportamiento anterior. Se corrige la próxima vez que el modelo revise la empresa.
       return 'agendada';
     }
+    // "Formulario enviado" puede existir aunque la empresa no haya aceptado explícitamente:
+    // p. ej. respondió sin decidir pero ya tiene el enlace + clave en su bandeja (BIOSA 852,
+    // 2026-10-22). Se muestra con prioridad sobre el estado base para no esconder que el
+    // acceso ya se envió. Hoy solo lo activa un override manual con sub_estado=formulario_enviado.
+    if (v.sub_estado_efectivo === 'formulario_enviado') return 'formulario_enviado';
     if (s === 'contacto_efectivo_no') return 'no_participa';
     if (s === 'respondio_sin_decision') return 'respondio_sin_decision';
     if (s === 'intento_sin_respuesta' || s === 'solo_correo') return 'intento';
