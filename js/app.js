@@ -854,7 +854,7 @@
             <div class="rot">Diferencia</div><div class="val">${signo(p.diferencia)}</div><div class="nota">${p.diferencia < 0 ? 'por debajo de la línea' : 'sobre la línea'}</div>
           </div>
           <div class="proy-kpi" style="border-top-color:var(--azul)">
-            <div class="rot">Proyección al cierre</div><div class="val">${p.proyectado_cierre}</div><div class="nota">si sostiene ${p.ritmo_reciente_semanal}/semana</div>
+            <div class="rot">Proyección al cierre</div><div class="val">${p.proyectado_cierre}</div><div class="nota">con el ritmo reciente de cada encuestador</div>
           </div>
         </div>
       </div>
@@ -1157,7 +1157,6 @@
         ${v.ajuste_contacto_prop ? `<div style="grid-column:1/-1;color:#5A5C61"><b>Contacto proporcionado:</b> la empresa entregó un contacto${v.ajuste_contacto_prop.contacto ? ` (${esc(v.ajuste_contacto_prop.contacto)})` : ''}, así que se cuenta como avance. Por evidencia documental el agente lo veía como <i>${esc(ETIQUETA[v.ajuste_contacto_prop.estado_agente] || v.ajuste_contacto_prop.estado_agente)}</i>.</div>` : ''}
         ${(e.declarado.casillas || []).length || e.declarado.no_participa ? `<div style="grid-column:1/-1"><b>Casillas del Excel:</b> ${esc((e.declarado.casillas || []).join(', ') || '—')}${e.declarado.no_participa ? ' · en hoja no-participa' : ''}</div>` : ''}
         ${v.coincide_con_declarado === false ? `<div style="grid-column:1/-1"><span class="discrepancia"><b>Discrepancia:</b> ${esc(v.discrepancia || 'el declarado no coincide con la evidencia')}</span></div>` : ''}
-        ${e.override ? `<div style="grid-column:1/-1"><b>Override:</b> ${esc(e.override.estado_verificado || '')} ${esc(e.override.nota || '')} (${esc(e.override.autor || '')}, ${esc(e.override.fecha || '')})</div>` : ''}
         ${v.error ? `<div class="discrepancia" style="grid-column:1/-1"><b>Error:</b> ${esc(v.error)}</div>` : ''}
       </div></td></tr>`;
     }).join('') || '<tr><td colspan="6" class="vacio">Sin resultados para el filtro.</td></tr>';
