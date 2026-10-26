@@ -830,7 +830,8 @@
         <div class="proy-mensaje">${esc(p.mensaje)}</div>
         ${p.brecha ? `<div class="proy-mensaje" style="background:#FDECEA;border-color:#F5B7B1;color:#7B1D16;margin-top:10px">
           <b>La meta no cabe en el plazo con un ritmo sostenible.</b>
-          Con ${p.techo_semanal} encuestas por persona a la semana (Fernando ${(p.por_persona.Fernando || {}).meta_proxima_semana || 3}),
+          Con ${p.techo_semanal} encuestas por persona a la semana (Fernando ${(p.por_persona.Fernando || {}).meta_proxima_semana || 3}${
+            (p.por_persona.Fernando || {}).fin_campo ? ` hasta el ${fmtFecha(p.por_persona.Fernando.fin_campo)}` : ''}),
           el equipo hace ${p.meta_semanal_equipo} semanales y llega a <b>${p.alcanzable}</b> el ${fmtFecha(p.fecha_meta)}:
           quedan <b>${p.brecha}</b> encuestas por fuera. Cerrar esa brecha exige ampliar el plazo,
           sumar personas o subir el techo semanal.
