@@ -71,7 +71,9 @@
     // p. ej. respondió sin decidir pero ya tiene el enlace + clave en su bandeja (BIOSA 852,
     // 2026-10-22). Se muestra con prioridad sobre el estado base para no esconder que el
     // acceso ya se envió. Hoy solo lo activa un override manual con sub_estado=formulario_enviado.
-    if (v.sub_estado_efectivo === 'formulario_enviado') return 'formulario_enviado';
+    // Nunca por encima de un rechazo explícito: si la empresa dijo que no, es "No participa"
+    // aunque antes se le hubiera enviado el acceso (INVERSIONES MARTINEZ MERCADO, 754, 2026-10-26).
+    if (v.sub_estado_efectivo === 'formulario_enviado' && s !== 'contacto_efectivo_no') return 'formulario_enviado';
     if (s === 'contacto_efectivo_no') return 'no_participa';
     if (s === 'respondio_sin_decision') return 'respondio_sin_decision';
     if (s === 'intento_sin_respuesta' || s === 'solo_correo') return 'intento';
@@ -698,21 +700,11 @@
     // Esperado: recta de 0 en la primera semana a `meta` en la última.
     const esp = `M${x(0)},${y(0)} L${x(n - 1)},${y(p.meta)}`;
     const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(maxY * f));
-    const hoyIdx = s.findIndex((d) => d.semana > (p.hoy_semana || '')) ;
-    // Marca vertical: la semana en que Fernando entró a campo (3er encuestador). Se lee de
-    // los datos (no se quema la fecha); se ubica en la semana de la serie >= su lunes de inicio.
-    const isoLunes = (dt) => { const o = new Date(dt); o.setDate(o.getDate() - ((o.getDay() + 6) % 7));
-      return `${o.getFullYear()}-${String(o.getMonth() + 1).padStart(2, '0')}-${String(o.getDate()).padStart(2, '0')}`; };
-    const ferIni = p.por_persona && p.por_persona.Fernando && p.por_persona.Fernando.inicio;
-    const ferIdx = ferIni ? s.findIndex((d) => d.semana >= isoLunes(new Date(ferIni + 'T00:00:00'))) : -1;
-    const ferMark = ferIdx > 0 ? `
-      <line x1="${x(ferIdx).toFixed(1)}" x2="${x(ferIdx).toFixed(1)}" y1="${MT}" y2="${H - MB}" stroke="var(--gris)" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.7"/>
-      <text x="${x(ferIdx).toFixed(1)}" y="${MT + 9}" text-anchor="middle" font-size="9.5" fill="var(--gris)">Entró Fernando</text>` : '';
+    // (2026-10-26: se quitó la marca vertical "Entró Fernando" a pedido del equipo.)
     return `<svg class="proy-graf" viewBox="0 0 ${W} ${H}" role="img"
         aria-label="Avance acumulado de encuestas frente a la trayectoria esperada">
       ${ticks.map((t) => `<g><line x1="${ML}" x2="${W - MR}" y1="${y(t)}" y2="${y(t)}" stroke="var(--linea)" stroke-width="1"/>
         <text x="${ML - 7}" y="${y(t) + 4}" text-anchor="end" font-size="10.5" fill="var(--gris)">${t}</text></g>`).join('')}
-      ${ferMark}
       <path d="${esp}" fill="none" stroke="var(--gris-claro)" stroke-width="2" stroke-dasharray="6 5"/>
       ${agLinea ? `<path d="${agLinea}" fill="none" stroke="var(--azul)" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round"/>
       ${ptsAg.map((d) => `<circle cx="${x(d.i).toFixed(1)}" cy="${y(d.v).toFixed(1)}" r="2.4" fill="var(--azul)"/>`).join('')}` : ''}
@@ -777,6 +769,42 @@
       </tr>`;
     }).join('');
 
+    // Cuántas encuestas COMPLETAS habría si se hacen las entrevistas agendadas de esta semana
+    // (pedido 2026-10-26). La base son las terminadas, no las iniciadas: las que van en curso
+    // no suman hasta que se cierren, y si una de ellas tiene cita esta semana entra en la lista.
+    const sem = p.agendadas_semana;
+    const tarjetaSemana = sem ? `
+      <div class="tarjeta">
+        <h2 style="margin:0 0 3px">Si se completan las agendadas de esta semana</h2>
+        <p class="ayuda" style="margin:0 0 14px">Entrevistas con fecha del ${fmtFecha(sem.desde)} al ${fmtFecha(sem.hasta)} que siguen
+          por hacer (sin canceladas ni reagendadas). Solo cuenta encuestas completas: las que están en curso no suman hasta terminarse.</p>
+        <div class="proy-kpis">
+          <div class="proy-kpi" style="border-top-color:${COLOR.contacto_efectivo_si}">
+            <div class="rot">Completas hoy</div><div class="val">${sem.completas_hoy}</div>
+            <div class="nota">sin contar ${p.en_curso} en curso</div>
+          </div>
+          <div class="proy-kpi" style="border-top-color:var(--azul)">
+            <div class="rot">Agendadas esta semana</div><div class="val">${sem.agendadas}</div>
+            <div class="nota">${sem.agendadas_en_curso ? `${sem.agendadas_en_curso} ya van en curso` : 'por realizar'}</div>
+          </div>
+          <div class="proy-kpi" style="border-top-color:${COLOR.contacto_efectivo_si}">
+            <div class="rot">Completas si se hacen todas</div><div class="val">${sem.completas_con_agendadas}</div>
+            <div class="nota">${sem.porcentaje_con_agendadas}% de la meta · faltarían ${sem.faltan_con_agendadas}</div>
+          </div>
+        </div>
+        ${sem.agendadas ? `<div class="tabla-wrap" style="margin-top:14px">
+          <table class="tabla">
+            <thead><tr><th>Fecha</th><th>Empresa</th><th>Entrevistador</th><th>Encuesta</th></tr></thead>
+            <tbody>${(sem.detalle || []).map((a) => `<tr>
+              <td>${fmtFecha(a.fecha)}${a.hora ? `<div class="nota">${esc(a.hora)}</div>` : ''}</td>
+              <td><b>${esc(a.empresa || '')}</b><div class="nota">${esc(a.id || '')}</div></td>
+              <td>${esc(nomPersona(a.persona))}</td>
+              <td>${a.en_curso ? 'En curso' : '<span class="nota">sin iniciar</span>'}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>` : `<div style="margin-top:14px">${vacio('No hay entrevistas pendientes con fecha esta semana.')}</div>`}
+      </div>` : '';
+
     cont.innerHTML = `
       <div class="tarjeta">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
@@ -808,6 +836,8 @@
           sumar personas o subir el techo semanal.
         </div>` : ''}
       </div>
+
+      ${tarjetaSemana}
 
       ${(p.agendadas && p.agendadas.futuras) ? `<div class="tarjeta">
         <h2 style="margin:0 0 3px">Si se realizan las entrevistas ya agendadas</h2>
