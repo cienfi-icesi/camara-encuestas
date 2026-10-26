@@ -733,7 +733,12 @@
     const pctEsper = Math.min(100, 100 * p.esperado_hoy / p.meta);
     const signo = (n) => (n > 0 ? '+' : '') + n;
 
+    // Primera cifra de la proyección (pedido 2026-10-26): completas + agendadas de esta semana,
+    // SIN las que van en curso. El resto de la proyección sigue midiéndose sobre las iniciadas.
+    const semK = p.agendadas_semana;
     const kpis = [
+      ...(semK ? [{ rot: 'Completas + agendadas esta semana', val: semK.completas_con_agendadas,
+        nota: `${semK.completas_hoy} completas + ${semK.agendadas} agendadas · sin las en curso`, color: COLOR.contacto_efectivo_si }] : []),
       { rot: 'Encuestas', val: p.diligenciadas, nota: `${p.terminadas} terminadas · ${p.en_curso} en curso`, color: COLOR.contacto_efectivo_si },
       { rot: 'Deberías llevar hoy', val: p.esperado_hoy, nota: `según la trayectoria · vas ${signo(p.diferencia)}`, color: p.diferencia < 0 ? 'var(--e-sin, #B3261E)' : COLOR.contacto_efectivo_si },
       { rot: 'Meta del estudio', val: p.meta, nota: `al ${fmtFecha(p.fecha_meta)}`, color: 'var(--azul)' },
